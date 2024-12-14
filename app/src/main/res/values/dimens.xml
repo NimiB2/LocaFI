@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="margin_s">8dp</dimen>
+    <dimen name="elevation">4dp</dimen>
+    <dimen name="margin_m">16dp</dimen>
+    <dimen name="padding">12dp</dimen>
+    <dimen name="height">200dp</dimen>
+    <dimen name="logo_size">32dp</dimen>
+    <dimen name="text_size">24sp</dimen>
+</resources>

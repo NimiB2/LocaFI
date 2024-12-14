@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">LocaFI</string>
+    <string name="indoor">Indoor</string>
+    <string name="outdoor">Outdoor</string>
+    <string name="scan_wi_fi">Scan Wi-Fi</string>
+    <string name="manage_wi_fi">Manage Wi-Fi</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="add_to_calculation">Add to Calculation</string>
+    <string name="selected_wi_fi_details">Selected Wi-Fi Details</string>
+    <string name="scan_again">Scan Again</string>
+    <string name="available_wi_fi_networks">Available Wi-Fi Networks</string>
+    <string name="app_logo">App Logo</string>
+</resources>

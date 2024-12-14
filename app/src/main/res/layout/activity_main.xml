@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.activities.MainActivity">
+
+
+    <!-- Top App Bar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/main_ABL_appbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/main_MTB_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            android:elevation="@dimen/elevation"
+            android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar">
+
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/main_IMG_logo"
+                    android:layout_width="@dimen/logo_size"
+                    android:layout_height="@dimen/logo_size"
+                    android:src="@drawable/ic_launcher_foreground"
+                    android:layout_marginEnd="@dimen/padding"
+                    android:contentDescription="@string/app_logo" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/main_MTV_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_name"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/text_size"
+                    android:textStyle="bold" />
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Visualization Container -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/main_MCV_visualization"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_margin="@dimen/margin_m"
+        app:cardElevation="@dimen/elevation"
+        app:layout_constraintTop_toBottomOf="@id/main_ABL_appbar"
+        app:layout_constraintBottom_toTopOf="@id/main_MCV_wifiList"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <FrameLayout
+            android:id="@+id/main_VIS_location"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="@dimen/margin_s" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Wi-Fi List Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/main_MCV_wifiList"
+        android:layout_width="match_parent"
+        android:layout_height="160dp"
+        android:layout_margin="@dimen/margin_m"
+        app:cardElevation="@dimen/elevation"
+        app:layout_constraintBottom_toTopOf="@id/main_LLC_buttons">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/main_RCV_wifiList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:padding="@dimen/margin_s" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Bottom Buttons Container -->
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:id="@+id/main_LLC_buttons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="@dimen/margin_m"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/main_BTN_scan"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="@dimen/margin_s"
+            android:text="@string/scan_wi_fi" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/main_BTN_manage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/margin_s"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:text="@string/manage_wi_fi" />
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>
