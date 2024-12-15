@@ -36,6 +36,7 @@ import android.Manifest;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WifiPoint;
 import dev.nimrod.locafi.ui.adapters.WifiListAdapter;
+import dev.nimrod.locafi.ui.views.LocationView;
 
 public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_CODE = 100;

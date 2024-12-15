@@ -5,6 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/background"
     tools:context=".ui.activities.MainActivity">
 
 
@@ -19,7 +20,7 @@
             android:id="@+id/main_MTB_toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
+            android:background="@color/secondary_color"
             android:elevation="@dimen/elevation"
             android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar">
 
@@ -33,7 +34,7 @@
                     android:id="@+id/main_IMG_logo"
                     android:layout_width="@dimen/logo_size"
                     android:layout_height="@dimen/logo_size"
-                    android:src="@drawable/ic_launcher_foreground"
+                    android:src="@mipmap/logo"
                     android:layout_marginEnd="@dimen/padding"
                     android:contentDescription="@string/app_logo" />
 
@@ -42,7 +43,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/app_name"
-                    android:textColor="@android:color/white"
+                    android:textColor="@color/text_color"
                     android:textSize="@dimen/text_size"
                     android:textStyle="bold" />
 
@@ -68,6 +69,7 @@
             android:id="@+id/main_VIS_location"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:background="@color/secondary_background"
             android:padding="@dimen/margin_s" />
 
     </com.google.android.material.card.MaterialCardView>
@@ -85,6 +87,7 @@
             android:id="@+id/main_RCV_wifiList"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:background="@color/secondary_color"
             android:clipToPadding="false"
             android:padding="@dimen/margin_s" />
 
@@ -104,6 +107,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:backgroundTint="@color/primary_color"
+            android:textColor="@color/secondary_color"
             android:layout_marginEnd="@dimen/margin_s"
             android:text="@string/scan_wi_fi" />
 
@@ -113,6 +118,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="@dimen/margin_s"
+            android:backgroundTint="@color/secondary_background"
+            android:textColor="@color/secondary_color"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:text="@string/manage_wi_fi" />
 

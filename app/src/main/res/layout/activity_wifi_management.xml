@@ -5,6 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/background"
     tools:context=".ui.activities.WifiManagement">
 
     <!-- Top App Bar -->
@@ -18,7 +19,7 @@
             android:id="@+id/main_MTB_toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
+            android:background="@color/secondary_color"
             android:elevation="@dimen/elevation"
             android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar">
 
@@ -32,7 +33,7 @@
                     android:id="@+id/main_IMG_logo"
                     android:layout_width="@dimen/logo_size"
                     android:layout_height="@dimen/logo_size"
-                    android:src="@drawable/ic_launcher_foreground"
+                    android:src="@mipmap/logo"
                     android:layout_marginEnd="@dimen/padding"
                     android:contentDescription="@string/app_logo" />
 
@@ -41,7 +42,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/app_name"
-                    android:textColor="@android:color/white"
+                    android:textColor="@color/text_color"
                     android:textSize="@dimen/text_size"
                     android:textStyle="bold" />
 
@@ -76,6 +77,7 @@
                 <androidx.appcompat.widget.LinearLayoutCompat
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:background="@color/secondary_color"
                     android:orientation="vertical"
                     android:padding="@dimen/margin_m">
 
@@ -83,9 +85,10 @@
                         android:id="@+id/wifi_manage_MTV_availableTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/margin_s"
                         android:text="@string/available_wi_fi_networks"
                         android:textAppearance="?attr/textAppearanceHeadline6"
-                        android:layout_marginBottom="@dimen/margin_s" />
+                        android:textColor="@color/text_color" />
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/wifi_manage_RCV_available"
@@ -101,7 +104,9 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_marginTop="@dimen/margin_s"
-                        android:text="@string/scan_again" />
+                        android:backgroundTint="@color/secondary_background"
+                        android:text="@string/scan_again"
+                        android:textColor="@color/secondary_color" />
 
                 </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -117,6 +122,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
+                    android:background="@color/secondary_background"
                     android:padding="@dimen/margin_m">
 
                     <com.google.android.material.textview.MaterialTextView
@@ -124,6 +130,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/selected_wi_fi_details"
+                        android:textColor="@color/secondary_color"
                         android:textAppearance="?attr/textAppearanceHeadline6"
                         android:layout_marginBottom="@dimen/margin_m" />
 
@@ -156,6 +163,9 @@
                         android:id="@+id/wifi_manage_BTN_add"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:backgroundTint="@color/primary_color"
+                        android:textColor="@color/secondary_color"
+                        android:textSize="16sp"
                         android:text="@string/add_to_calculation" />
 
                 </androidx.appcompat.widget.LinearLayoutCompat>
