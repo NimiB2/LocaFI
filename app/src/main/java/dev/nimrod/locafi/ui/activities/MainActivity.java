@@ -1,11 +1,12 @@
 package dev.nimrod.locafi.ui.activities;
 
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.location.LocationManager;
+import android.net.Uri;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
@@ -31,7 +32,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import dev.nimrod.locafi.Manifest;
+import android.Manifest;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WifiPoint;
 import dev.nimrod.locafi.ui.adapters.WifiListAdapter;
@@ -49,7 +50,8 @@ public class MainActivity extends AppCompatActivity {
 
     // Utilities
     private WifiManager wifiManager;
-    private LocationManager locationManager;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -58,6 +60,7 @@ public class MainActivity extends AppCompatActivity {
 
         initializeServices();
         initializeViews();
+        showDisclaimerDialog();
         setupListeners();
         setupRecyclerView();
         checkPermissions();
@@ -65,7 +68,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void initializeServices() {
         wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
     }
 
     private void initializeViews() {
@@ -99,7 +101,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkPermissions() {
         String[] permissions = {
-                Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_WIFI_STATE,
                 Manifest.permission.CHANGE_WIFI_STATE
         };
@@ -125,11 +126,6 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            showEnableLocationDialog();
-            return;
-        }
-
         boolean success = wifiManager.startScan();
         if (!success) {
             Toast.makeText(this, "Failed to start Wi-Fi scan", Toast.LENGTH_SHORT).show();
@@ -149,14 +145,14 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private void scanSuccess() {
-        List<ScanResult> results = wifiManager.getScanResults();
+        List<ScanResult> results = getScanResults();
         List<ScanResult> filteredResults = filterAndSortResults(results);
         wifiListAdapter.updateData(filteredResults);
         updateVisualization(filteredResults);
     }
 
     private void scanFailure() {
-        List<ScanResult> results = wifiManager.getScanResults();
+        List<ScanResult> results = getScanResults();
 
         if (results.isEmpty()) {
             Toast.makeText(this, "No WiFi networks found", Toast.LENGTH_SHORT).show();
@@ -172,6 +168,33 @@ public class MainActivity extends AppCompatActivity {
                 "Showing cached WiFi scan results",
                 Snackbar.LENGTH_LONG
         ).setAction("Retry", v -> startWifiScan()).show();
+    }
+    @SuppressLint("MissingPermission")
+    private List<ScanResult> getScanResults() {
+        try {
+            if (checkScanPermission()) {
+                return wifiManager.getScanResults();
+            }
+        } catch (SecurityException e) {
+            Toast.makeText(this, "Permission error while scanning WiFi", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Error while scanning WiFi", Toast.LENGTH_SHORT).show();
+        }
+        return new ArrayList<>();
+    }
+
+    private boolean checkScanPermission() {
+        // For Android 10 (API 29) and above
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_WIFI_STATE)
+                    == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.CHANGE_WIFI_STATE)
+                            == PackageManager.PERMISSION_GRANTED;
+        } else {
+            // For older versions
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_WIFI_STATE)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
     }
 
     private List<ScanResult> filterAndSortResults(List<ScanResult> results) {
@@ -223,16 +246,19 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void showEnableLocationDialog() {
+    private void showDisclaimerDialog() {
         new MaterialAlertDialogBuilder(this)
-                .setTitle("Location Required")
-                .setMessage("Please enable location services to scan for Wi-Fi networks")
-                .setPositiveButton("Enable", (dialog, which) -> {
-                    Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                    startActivity(intent);
-                })
-                .setNegativeButton("Cancel", null)
+                .setTitle("Educational Purpose")
+                .setMessage("This app demonstrates how device position can be " +
+                        "approximated using only WiFi signals and signal strength measurements. " +
+                        "This highlights potential privacy implications of WiFi scanning capabilities.")
+                .setPositiveButton("Understand", null)
                 .show();
+    }
+
+    private boolean shouldShowPermissionRationale() {
+        return ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_WIFI_STATE) ||
+                ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CHANGE_WIFI_STATE);
     }
 
     @Override
@@ -255,10 +281,24 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 &&
                     Arrays.stream(grantResults).allMatch(result -> result == PackageManager.PERMISSION_GRANTED)) {
-                // Permissions granted, proceed with functionality
+                // All permissions granted, proceed with functionality
                 startWifiScan();
             } else {
-                Toast.makeText(this, "Required permissions not granted", Toast.LENGTH_LONG).show();
+                // Show explanation and provide way to request again
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle("Permissions Required")
+                        .setMessage("WiFi permissions are required for scanning networks and determining " +
+                                "approximate position. Please grant these permissions to continue.")
+                        .setPositiveButton("Settings", (dialog, which) -> {
+                            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                            Uri uri = Uri.fromParts("package", getPackageName(), null);
+                            intent.setData(uri);
+                            startActivity(intent);
+                        })
+                        .setNegativeButton("Cancel", (dialog, which) -> {
+                            Toast.makeText(this, "Required permissions not granted", Toast.LENGTH_LONG).show();
+                        })
+                        .show();
             }
         }
     }
