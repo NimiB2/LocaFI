@@ -11,6 +11,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
@@ -59,8 +60,8 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
-        initializeServices();
         initializeViews();
+        initializeServices();
         showDisclaimerDialog();
         setupListeners();
         setupRecyclerView();
@@ -78,9 +79,15 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize other views
         wifiListRecyclerView = findViewById(R.id.main_RCV_wifiList);
-        scanButton = findViewById(R.id.main_BTN_scan);
+        scanButton = findViewById(R.id.main_BTN_scan);          // Initialize buttons first
         manageButton = findViewById(R.id.main_BTN_manage);
         visualizationContainer = findViewById(R.id.main_VIS_location);
+
+        // Initialize empty states visibility
+        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.VISIBLE);
+        visualizationContainer.setVisibility(View.GONE);
+        findViewById(R.id.main_LLC_empty_list).setVisibility(View.VISIBLE);
+        wifiListRecyclerView.setVisibility(View.GONE);
     }
 
     private void setupListeners() {
@@ -148,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
     private void scanSuccess() {
         List<ScanResult> results = getScanResults();
         List<ScanResult> filteredResults = filterAndSortResults(results);
+        updateVisibility(!filteredResults.isEmpty());
         wifiListAdapter.updateData(filteredResults);
         updateVisualization(filteredResults);
     }
@@ -156,11 +164,13 @@ public class MainActivity extends AppCompatActivity {
         List<ScanResult> results = getScanResults();
 
         if (results.isEmpty()) {
+            updateVisibility(false); // Show empty states
             Toast.makeText(this, "No WiFi networks found", Toast.LENGTH_SHORT).show();
             return;
         }
 
         List<ScanResult> filteredResults = filterAndSortResults(results);
+        updateVisibility(!filteredResults.isEmpty());
         wifiListAdapter.updateData(filteredResults);
         updateVisualization(filteredResults);
 
@@ -203,6 +213,16 @@ public class MainActivity extends AppCompatActivity {
                 .filter(result -> result.SSID != null && !result.SSID.isEmpty())
                 .sorted((r1, r2) -> Integer.compare(r2.level, r1.level))
                 .collect(Collectors.toList());
+    }
+
+    private void updateVisibility(boolean hasData) {
+        // Visualization
+        findViewById(R.id.main_LLC_empty_visualization).setVisibility(hasData ? View.GONE : View.VISIBLE);
+        findViewById(R.id.main_VIS_location).setVisibility(hasData ? View.VISIBLE : View.GONE);
+
+        // WiFi List
+        findViewById(R.id.main_LLC_empty_list).setVisibility(hasData ? View.GONE : View.VISIBLE);
+        findViewById(R.id.main_RCV_wifiList).setVisibility(hasData ? View.VISIBLE : View.GONE);
     }
 
     private void updateVisualization(List<ScanResult> wifiPoints) {

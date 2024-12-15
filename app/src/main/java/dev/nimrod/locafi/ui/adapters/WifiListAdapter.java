@@ -17,9 +17,19 @@ import dev.nimrod.locafi.R;
 
 public class WifiListAdapter extends RecyclerView.Adapter<WifiListAdapter.WifiViewHolder> {
     private List<ScanResult> wifiList;
+    private OnWifiPointClickListener listener;  // Add this
+
 
     public WifiListAdapter(List<ScanResult> wifiList) {
         this.wifiList = wifiList;
+    }
+
+    public interface OnWifiPointClickListener {
+        void onWifiPointClick(ScanResult wifiPoint);
+    }
+
+    public void setOnWifiPointClickListener(OnWifiPointClickListener listener) {
+        this.listener = listener;
     }
 
     @NonNull
@@ -33,7 +43,7 @@ public class WifiListAdapter extends RecyclerView.Adapter<WifiListAdapter.WifiVi
     @Override
     public void onBindViewHolder(@NonNull WifiViewHolder holder, int position) {
         ScanResult wifiPoint = wifiList.get(position);
-        holder.bind(wifiPoint);
+        holder.bind(wifiPoint, listener);
     }
 
     @Override
@@ -56,9 +66,16 @@ public class WifiListAdapter extends RecyclerView.Adapter<WifiListAdapter.WifiVi
             locationTextView = itemView.findViewById(R.id.stored_wifi_MTV_location);
         }
 
-        public void bind(final ScanResult wifiPoint) {
+        public void bind(final ScanResult wifiPoint, final OnWifiPointClickListener listener) {
             nameTextView.setText(wifiPoint.SSID);
             locationTextView.setText(String.format("Signal: %d dBm", wifiPoint.level));
+
+            // Add click listener
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onWifiPointClick(wifiPoint);
+                }
+            });
         }
     }
 }

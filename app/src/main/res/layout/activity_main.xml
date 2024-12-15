@@ -65,10 +65,50 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/main_LLC_empty_visualization"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/secondary_background"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="visible"
+            android:padding="@dimen/margin_m">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/main_IMG_empty_vis"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@drawable/wifi_search"
+                android:alpha="0.6"/>
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/main_MTV_empty_vis_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/margin_m"
+                android:text="@string/wifi_network_visualization"
+                android:textAlignment="center"
+                android:textAppearance="?attr/textAppearanceHeadline6"
+                android:textColor="@color/secondary_color"/>
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/main_MTV_empty_vis_desc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/margin_s"
+                android:text="@string/start_scanning_to_see_nearby_networks"
+                android:textAlignment="center"
+                android:textAppearance="?attr/textAppearanceBody1"
+                android:textColor="@color/secondary_color"
+                android:alpha="0.7"/>
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
         <FrameLayout
             android:id="@+id/main_VIS_location"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:visibility="gone"
             android:background="@color/secondary_background"
             android:padding="@dimen/margin_s" />
 
@@ -83,12 +123,44 @@
         app:cardElevation="@dimen/elevation"
         app:layout_constraintBottom_toTopOf="@id/main_LLC_buttons">
 
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/main_LLC_empty_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/secondary_color"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="visible"
+            android:padding="@dimen/margin_m">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/main_MTV_empty_list_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/no_networks_found"
+                android:textAlignment="center"
+                android:textAppearance="?attr/textAppearanceSubtitle1"
+                android:textColor="@color/text_color"/>
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/main_MTV_empty_list_desc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/margin_s"
+                android:text="@string/press_scan_to_discover_networks"
+                android:textAlignment="center"
+                android:textAppearance="?attr/textAppearanceBody2"
+                android:textColor="@color/text_color"
+                android:alpha="0.7"/>
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/main_RCV_wifiList"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/secondary_color"
             android:clipToPadding="false"
+            android:visibility="gone"
             android:padding="@dimen/margin_s" />
 
     </com.google.android.material.card.MaterialCardView>

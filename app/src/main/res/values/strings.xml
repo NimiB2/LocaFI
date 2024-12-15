@@ -11,4 +11,15 @@
     <string name="scan_again">Scan Again</string>
     <string name="available_wi_fi_networks">Available Wi-Fi Networks</string>
     <string name="app_logo">App Logo</string>
+
+    <!-- Main Screen Text -->
+    <string name="wifi_scan_title">WiFi Network Scanner</string>
+    <string name="wifi_scan_description">Discover and visualize nearby WiFi networks</string>
+    <string name="start_scanning">Start Scanning</string>
+    <string name="manage_networks">Manage Networks</string>
+    <string name="start_scanning_to_see_nearby_networks">Start scanning to see nearby networks</string>
+    <string name="wifi_network_visualization">WiFi Network Visualization</string>
+    <string name="press_scan_to_discover_networks">Press scan to discover networks</string>
+    <string name="no_networks_found">No Networks Found</string>
+
 </resources>
