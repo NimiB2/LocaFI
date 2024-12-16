@@ -11,6 +11,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.Toast;
@@ -34,6 +35,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import android.Manifest;
+
+import dev.nimrod.locafi.BuildConfig;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WifiPoint;
 import dev.nimrod.locafi.ui.adapters.WifiListAdapter;
@@ -268,8 +271,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showDisclaimerDialog() {
+       // String apiKey = BuildConfig.MAPS_API_KEY;
+       // Log.d("API_KEY", apiKey);
+
+
         new MaterialAlertDialogBuilder(this)
-                .setTitle("Educational Purpose")
+                .setTitle("apiKey")
                 .setMessage("This app demonstrates how device position can be " +
                         "approximated using only WiFi signals and signal strength measurements. " +
                         "This highlights potential privacy implications of WiFi scanning capabilities.")
