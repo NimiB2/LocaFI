@@ -80,6 +80,11 @@ public class WifiPoint {
         return Math.max(baseRadius, 5.0); // Minimum 5 meters radius
     }
 
+    public boolean isValidPosition() {
+        return position != null && position.isValid();
+    }
+
+
     // Enhanced getters and setters
     public String getSsid() {
         return ssid;

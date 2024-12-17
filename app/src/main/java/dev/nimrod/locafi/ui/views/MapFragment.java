@@ -16,10 +16,10 @@ import android.view.ViewGroup;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
@@ -31,15 +31,16 @@ import java.util.List;
 
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WifiPoint;
+import dev.nimrod.locafi.models.WifiTriangulation;
 import dev.nimrod.locafi.ui.maps.MapManager;
 
 public class MapFragment extends Fragment {
     private GoogleMap googleMap;
     private Runnable onMapReadyCallback;
     private FusedLocationProviderClient fusedLocationClient;
-    private FloatingActionButton fabMyLocation;
     private Location lastKnownLocation;
     private MapManager mapManager;
+    private boolean isInitialLocationSet = false;
 
     @Nullable
     @Override
@@ -47,23 +48,23 @@ public class MapFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_map, container, false);
 
-        fabMyLocation = view.findViewById(R.id.fab_my_location);
-        fabMyLocation.setOnClickListener(v -> getCurrentLocation());
-
         SupportMapFragment supportMapFragment = (SupportMapFragment)
                 getChildFragmentManager().findFragmentById(R.id.wifi_map);
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity());
+
 
         supportMapFragment.getMapAsync(googleMap -> {
             this.googleMap = googleMap;
             this.mapManager = new MapManager(googleMap, requireContext());
+            setupMap();
+            getCurrentLocation(true);
             if (onMapReadyCallback != null) {
                 onMapReadyCallback.run();
                 onMapReadyCallback = null;
             }
-            getCurrentLocation();
         });
 
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity());
         return view;
     }
 
@@ -78,36 +79,45 @@ public class MapFragment extends Fragment {
     private void setupMap() {
         if (googleMap == null) return;
 
-        try {
-            // Enable zoom controls
-            googleMap.getUiSettings().setZoomControlsEnabled(true);
-            googleMap.getUiSettings().setZoomGesturesEnabled(true);
+        googleMap.getUiSettings().setZoomControlsEnabled(true);
+        googleMap.getUiSettings().setZoomGesturesEnabled(true);
+        googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
 
-            // Set default location (e.g., Tel Aviv)
-            LatLng defaultLocation = new LatLng(32.0853, 34.7818);
-            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 15));
-
-            // Add a marker to verify map is working
-            googleMap.addMarker(new MarkerOptions()
-                    .position(defaultLocation)
-                    .title("Default Location"));
-
-            // Set map type
-            googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
-
-            Log.d("MapFragment", "Map setup completed successfully");
-        } catch (Exception e) {
-            Log.e("MapFragment", "Error setting up map: " + e.getMessage());
-        }
+        googleMap.setMinZoomPreference(15.0f);
+        googleMap.setMaxZoomPreference(21.0f);
     }
 
-    public void updateWifiPoints(List<WifiPoint> wifiPoints) {
-        if (googleMap == null) {
-            setOnMapReadyCallback(() -> updateWifiPoints(wifiPoints));
+    private void getCurrentLocation(boolean isInitial) {
+        if (ActivityCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        if (mapManager != null) {
-            mapManager.updateWifiPoints(wifiPoints);
+
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener(requireActivity(), location -> {
+                    if (location != null) {
+                        lastKnownLocation = location;
+                        updateUserLocation(location);
+                        if (isInitial && !isInitialLocationSet) {
+                            focusOnUserLocation();
+                            isInitialLocationSet = true;
+                        }
+                    }
+                });
+    }
+
+    private void focusOnUserLocation() {
+        if (lastKnownLocation != null && googleMap != null) {
+            LatLng userLatLng = new LatLng(lastKnownLocation.getLatitude(),
+                    lastKnownLocation.getLongitude());
+
+            CameraPosition cameraPosition = new CameraPosition.Builder()
+                    .target(userLatLng)
+                    .zoom(17)  // Closer zoom level
+                    .build();
+
+            googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition),
+                    1000, null);  // 1 second animation
         }
     }
 
@@ -122,58 +132,18 @@ public class MapFragment extends Fragment {
         }
     }
 
-    private void getCurrentLocation() {
-        if (ActivityCompat.checkSelfPermission(requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+    // Override the zoomToFitWifiPoints method to preserve camera position when needed
+    public void zoomToFitWifiPoints(List<WifiPoint> wifiPoints, boolean preserveUserLocation) {
+        if (googleMap == null || wifiPoints == null || wifiPoints.isEmpty()) {
             return;
         }
 
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(requireActivity(), this::updateUserLocation);
-    }
-
-    public void clearMap() {
-        if (googleMap == null) {
-            setOnMapReadyCallback(this::clearMap);
-            return;
-        }
-        if (mapManager != null) {
-            mapManager.clearMap();
-        }
-    }
-
-    public Location getLastKnownLocation() {
-        return lastKnownLocation;
-    }
-
-    public void zoom(double lat, double lon, String title) {
-        if (googleMap == null) {
-            setOnMapReadyCallback(() -> zoom(lat, lon, title));
-            return;
-        }
-        googleMap.clear();
-        googleMap.addMarker(new MarkerOptions()
-                .position(new LatLng(lat, lon))
-                .title(title));
-
-        CameraPosition cameraPosition = new CameraPosition.Builder()
-                .target(new LatLng(lat, lon))
-                .zoom(15)
-                .build();
-        googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
-    }
-
-    // Zoom to show all WiFi points
-    public void zoomToFitWifiPoints(List<WifiPoint> wifiPoints) {
-        if (googleMap == null) {
-            setOnMapReadyCallback(() -> zoomToFitWifiPoints(wifiPoints));
+        if (preserveUserLocation && lastKnownLocation != null) {
+            focusOnUserLocation();
             return;
         }
 
-        if (wifiPoints == null || wifiPoints.isEmpty()) {
-            return;
-        }
-
+        // Original zooming logic for WiFi points
         LatLngBounds.Builder builder = new LatLngBounds.Builder();
         for (WifiPoint point : wifiPoints) {
             if (point.hasValidPosition()) {
@@ -183,14 +153,112 @@ public class MapFragment extends Fragment {
 
         try {
             LatLngBounds bounds = builder.build();
-            int padding = 100; // offset from edges of the map in pixels
-            CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, padding);
-            googleMap.animateCamera(cu);
+            int padding = 100;
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding));
         } catch (Exception e) {
-            // Fallback to default zoom if bounds calculation fails
-            if (!wifiPoints.isEmpty()) {
-                WifiPoint firstPoint = wifiPoints.get(0);
-                zoom(firstPoint.getLatitude(), firstPoint.getLongitude(), firstPoint.getSsid());
+            Log.e("MapFragment", "Error zooming to fit points: " + e.getMessage());
+        }
+    }
+
+    public Location getLastKnownLocation() {
+        if (googleMap == null) {
+            Log.e("MapFragment", "Google Map is not ready yet.");
+            return null;
+        }
+
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            Log.e("MapFragment", "Location permission not granted.");
+            return null;
+        }
+
+        // Enable the "My Location" layer on the map
+        googleMap.setMyLocationEnabled(true);
+
+        // Get last known location directly from GoogleMap
+        return googleMap.getMyLocation();
+    }
+
+
+
+    public void updateWifiPoints(List<WifiPoint> wifiPoints) {
+        if (googleMap == null) {
+            // If map isn't ready, queue the update
+            setOnMapReadyCallback(() -> updateWifiPoints(wifiPoints));
+            return;
+        }
+
+        if (wifiPoints == null || wifiPoints.isEmpty()) {
+            if (mapManager != null) {
+                mapManager.clearMap();
+            }
+            return;
+        }
+
+        // Store current camera position
+        CameraPosition currentCamera = googleMap.getCameraPosition();
+
+        // Update points on the map
+        if (mapManager != null) {
+            mapManager.updateWifiPoints(wifiPoints);
+            WifiTriangulation triangulation = new WifiTriangulation(wifiPoints);
+            LatLng wifiLocation = triangulation.getMostLikelyLocation();
+
+            if (wifiLocation != null) {
+                mapManager.updateWifiBasedLocation(wifiLocation);
+            }
+        }
+
+
+        // Calculate bounds to check if we need to adjust the camera
+        LatLngBounds.Builder builder = new LatLngBounds.Builder();
+        boolean hasValidPoints = false;
+
+        // Include user location in bounds if available
+        if (lastKnownLocation != null) {
+            builder.include(new LatLng(lastKnownLocation.getLatitude(),
+                    lastKnownLocation.getLongitude()));
+            hasValidPoints = true;
+        }
+
+        // Add WiFi points to bounds
+        for (WifiPoint point : wifiPoints) {
+            if (point.hasValidPosition()) {
+                builder.include(new LatLng(point.getLatitude(), point.getLongitude()));
+                hasValidPoints = true;
+            }
+        }
+
+        // Only adjust camera if this is the first update or points are out of view
+        if (hasValidPoints) {
+            try {
+                LatLngBounds bounds = builder.build();
+
+                // Check if current view contains all points
+                if (!isInitialLocationSet || !currentCamera.target.equals(bounds.getCenter())) {
+                    int padding = 100; // padding in pixels
+                    googleMap.animateCamera(
+                            CameraUpdateFactory.newLatLngBounds(bounds, padding),
+                            1000, // 1 second duration
+                            new GoogleMap.CancelableCallback() {
+                                @Override
+                                public void onFinish() {
+                                    isInitialLocationSet = true;
+                                }
+
+                                @Override
+                                public void onCancel() {
+                                    isInitialLocationSet = true;
+                                }
+                            }
+                    );
+                }
+            } catch (Exception e) {
+                Log.e("MapFragment", "Error adjusting camera: " + e.getMessage());
+                // Fallback to focusing on user location if bounds calculation fails
+                if (lastKnownLocation != null) {
+                    focusOnUserLocation();
+                }
             }
         }
     }

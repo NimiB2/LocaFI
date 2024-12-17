@@ -128,9 +128,22 @@ public class MainActivity extends AppCompatActivity{
 
         mapFragment.setOnMapReadyCallback(() -> {
             Log.d("MainActivity", "Map is ready");
-            startWifiScan();
+            // First get location, then start WiFi scan
+            if (checkLocationPermission()) {
+                startWifiScan();
+            }
         });
     }
+
+    private boolean checkLocationPermission() {
+        if (ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestLocationPermissions();
+            return false;
+        }
+        return true;
+    }
+
     private boolean checkGooglePlayServices() {
         GoogleApiAvailability googleApiAvailability = GoogleApiAvailability.getInstance();
         int resultCode = googleApiAvailability.isGooglePlayServicesAvailable(this);
@@ -257,14 +270,14 @@ public class MainActivity extends AppCompatActivity{
     }
 
     private WifiPosition calculateWifiPosition(ScanResult result) {
-
-        Location location = getLastKnownLocation();
+        Location location = mapFragment.getLastKnownLocation();
         if (location == null) {
             return null;
         }
 
         double distance = calculateDistance(result.level);
-        double bearing = Math.random() * 360; // Random bearing for demo
+        // Use signal strength to determine approximate direction instead of random
+        double bearing = (result.level + 100) * 3.6; // Convert signal strength to angle (0-360)
 
         return new WifiPosition(location.getLatitude(), location.getLongitude())
                 .calculateDestination(distance, bearing);
@@ -372,24 +385,17 @@ public class MainActivity extends AppCompatActivity{
         findViewById(R.id.main_RCV_wifiList).setVisibility(hasData ? View.VISIBLE : View.GONE);
     }
 
-    private void updateVisualization(List<ScanResult> wifiPoints) {
-        LocationView locationView = new LocationView(this);
-        locationView.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-        ));
+    private void updateVisualization(List<ScanResult> results) {
+        List<ScanResult> filteredResults = filterAndSortResults(results);
+        updateVisibility(!filteredResults.isEmpty());
+        wifiListAdapter.updateData(filteredResults);
 
-        for (ScanResult wifiPoint : wifiPoints) {
-            locationView.addWifiPoint(new WifiPoint(
-                    wifiPoint.SSID,
-                    wifiPoint.BSSID,
-                    wifiPoint.level,
-                    calculateDistance(wifiPoint.level)
-            ));
-        }
+        // Convert to WiFi points and update map
+        List<WifiPoint> wifiPoints = convertToWifiPoints(filteredResults);
+        mapFragment.updateWifiPoints(wifiPoints);
 
-        visualizationContainer.removeAllViews();
-        visualizationContainer.addView(locationView);
+        // When updating visualization, preserve user location
+        mapFragment.zoomToFitWifiPoints(wifiPoints, true);
     }
 
     private double calculateDistance(int rssi) {

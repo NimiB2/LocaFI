@@ -3,13 +3,22 @@ package dev.nimrod.locafi.ui.maps;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -23,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.LocationCalculator;
 import dev.nimrod.locafi.models.WifiPoint;
 import dev.nimrod.locafi.models.WifiTriangulation;
@@ -35,6 +45,7 @@ public class MapManager {
     private Polygon intersectionArea;
     private Map<String, WifiPoint> wifiPointMap;
     private Context context;
+    private Marker wifiMarker;
 
     public MapManager(GoogleMap map, Context context) {
         this.map = map;
@@ -60,6 +71,27 @@ public class MapManager {
                 PackageManager.PERMISSION_GRANTED) {
             map.setMyLocationEnabled(true);
         }
+
+        map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
+            @Override
+            public View getInfoWindow(Marker marker) {
+                return null; // Default window
+            }
+
+            @Override
+            public View getInfoContents(Marker marker) {
+                LinearLayout infoView = new LinearLayout(context);
+                infoView.setOrientation(LinearLayout.VERTICAL);
+
+                TextView title = new TextView(context);
+                title.setText(marker.getTitle());
+                title.setTextColor(Color.BLACK);
+                title.setTextSize(16);
+                infoView.addView(title);
+
+                return infoView;
+            }
+        });
     }
 
     public void updateWifiPoints(List<WifiPoint> wifiPoints) {
@@ -100,21 +132,39 @@ public class MapManager {
         }
     }
 
+    private BitmapDescriptor getBitmapDescriptorFromVector(int vectorResId) {
+        Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
+        vectorDrawable.setBounds(0, 0, vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight());
+        Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        vectorDrawable.draw(canvas);
+        return BitmapDescriptorFactory.fromBitmap(bitmap);
+    }
+
     public void updateUserLocation(Location location) {
         LatLng userLatLng = new LatLng(location.getLatitude(), location.getLongitude());
 
         if (userMarker == null) {
             MarkerOptions markerOptions = new MarkerOptions()
                     .position(userLatLng)
-                    .title("Your Location")
-                    .snippet("Accuracy: " + String.format("%.2f m", location.getAccuracy()));
+                    .title("Real GPS Location")
+                    .icon(getBitmapDescriptorFromVector(R.drawable.gps_location_icon));
 
             userMarker = map.addMarker(markerOptions);
         } else {
             userMarker.setPosition(userLatLng);
-            userMarker.setSnippet("Accuracy: " + String.format("%.2f m", location.getAccuracy()));
         }
     }
+
+    public void updateWifiBasedLocation(LatLng wifiLocation) {
+        MarkerOptions markerOptions = new MarkerOptions()
+                .position(wifiLocation)
+                .title("WiFi-Based Location")
+                .icon(getBitmapDescriptorFromVector(R.drawable.wifi_location_icon));
+
+        map.addMarker(markerOptions);
+    }
+
 
     private void updateIntersectionArea(List<WifiPoint> wifiPoints) {
         if (intersectionArea != null) {
