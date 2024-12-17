@@ -6,10 +6,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.net.Uri;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -24,6 +26,14 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -32,6 +42,8 @@ import com.google.android.material.snackbar.Snackbar;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import android.Manifest;
@@ -39,12 +51,18 @@ import android.Manifest;
 import dev.nimrod.locafi.BuildConfig;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WifiPoint;
+import dev.nimrod.locafi.models.WifiPosition;
 import dev.nimrod.locafi.ui.adapters.WifiListAdapter;
 import dev.nimrod.locafi.ui.views.LocationView;
+import dev.nimrod.locafi.ui.views.MapFragment;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity{
     private static final int PERMISSION_REQUEST_CODE = 100;
     private static final String TAG = "MainActivity";
+    private FusedLocationProviderClient fusedLocationClient;
+
+    private MapFragment mapFragment;
+
 
     // UI Components
     private RecyclerView wifiListRecyclerView;
@@ -65,14 +83,22 @@ public class MainActivity extends AppCompatActivity {
 
         initializeViews();
         initializeServices();
+        setupMapFragment();
         showDisclaimerDialog();
         setupListeners();
         setupRecyclerView();
         checkPermissions();
+
+        if (!checkGooglePlayServices()) {
+            Log.e("MainActivity", "Google Play Services not available");
+            return;
+        }
     }
 
     private void initializeServices() {
         wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
     }
 
     private void initializeViews() {
@@ -91,6 +117,30 @@ public class MainActivity extends AppCompatActivity {
         visualizationContainer.setVisibility(View.GONE);
         findViewById(R.id.main_LLC_empty_list).setVisibility(View.VISIBLE);
         wifiListRecyclerView.setVisibility(View.GONE);
+    }
+
+    private void setupMapFragment() {
+        mapFragment = new MapFragment();
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.main_VIS_location, mapFragment)
+                .commit();
+
+        mapFragment.setOnMapReadyCallback(() -> {
+            Log.d("MainActivity", "Map is ready");
+            startWifiScan();
+        });
+    }
+    private boolean checkGooglePlayServices() {
+        GoogleApiAvailability googleApiAvailability = GoogleApiAvailability.getInstance();
+        int resultCode = googleApiAvailability.isGooglePlayServicesAvailable(this);
+        if (resultCode != ConnectionResult.SUCCESS) {
+            if (googleApiAvailability.isUserResolvableError(resultCode)) {
+                googleApiAvailability.getErrorDialog(this, resultCode, 2404).show();
+            }
+            return false;
+        }
+        return true;
     }
 
     private void setupListeners() {
@@ -160,8 +210,12 @@ public class MainActivity extends AppCompatActivity {
         List<ScanResult> filteredResults = filterAndSortResults(results);
         updateVisibility(!filteredResults.isEmpty());
         wifiListAdapter.updateData(filteredResults);
-        updateVisualization(filteredResults);
+
+        // Convert ScanResults to WifiPoints and update map
+        List<WifiPoint> wifiPoints = convertToWifiPoints(filteredResults);
+        mapFragment.updateWifiPoints(wifiPoints);
     }
+
 
     private void scanFailure() {
         List<ScanResult> results = getScanResults();
@@ -183,6 +237,96 @@ public class MainActivity extends AppCompatActivity {
                 Snackbar.LENGTH_LONG
         ).setAction("Retry", v -> startWifiScan()).show();
     }
+
+    private List<WifiPoint> convertToWifiPoints(List<ScanResult> scanResults) {
+        List<WifiPoint> wifiPoints = new ArrayList<>();
+        for (ScanResult result : scanResults) {
+            WifiPosition position = calculateWifiPosition(result);
+            double distance = calculateDistance(result.level);
+
+            WifiPoint wifiPoint = new WifiPoint(
+                    result.SSID,
+                    result.BSSID,
+                    result.level,
+                    distance,
+                    position
+            );
+            wifiPoints.add(wifiPoint);
+        }
+        return wifiPoints;
+    }
+
+    private WifiPosition calculateWifiPosition(ScanResult result) {
+
+        Location location = getLastKnownLocation();
+        if (location == null) {
+            return null;
+        }
+
+        double distance = calculateDistance(result.level);
+        double bearing = Math.random() * 360; // Random bearing for demo
+
+        return new WifiPosition(location.getLatitude(), location.getLongitude())
+                .calculateDestination(distance, bearing);
+    }
+
+    private Location getLastKnownLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED) {
+            requestLocationPermissions();
+            return null;
+        }
+        // Using a CompletableFuture to handle the async nature of getLastLocation
+        CompletableFuture<Location> locationFuture = new CompletableFuture<>();
+
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(this, location -> locationFuture.complete(location))
+                .addOnFailureListener(e -> locationFuture.complete(null));
+
+        try {
+            Location location = locationFuture.get(1, TimeUnit.SECONDS);
+            if (location == null) {
+                // If last location is null, try getting current location
+                requestNewLocation();
+            }
+            return location;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void requestNewLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        LocationRequest locationRequest = LocationRequest.create()
+                .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+                .setNumUpdates(1)
+                .setInterval(0);
+
+        fusedLocationClient.requestLocationUpdates(locationRequest, new LocationCallback() {
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+                super.onLocationResult(locationResult);
+                Location location = locationResult.getLastLocation();
+                if (location != null) {
+                    mapFragment.updateUserLocation(location);
+                }
+            }
+        }, Looper.getMainLooper());
+    }
+
+    private void requestLocationPermissions() {
+        ActivityCompat.requestPermissions(this,
+                new String[]{
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                },
+                PERMISSION_REQUEST_CODE);
+    }
+
     @SuppressLint("MissingPermission")
     private List<ScanResult> getScanResults() {
         try {
@@ -271,17 +415,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showDisclaimerDialog() {
-       // String apiKey = BuildConfig.MAPS_API_KEY;
-       // Log.d("API_KEY", apiKey);
 
-
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("apiKey")
-                .setMessage("This app demonstrates how device position can be " +
-                        "approximated using only WiFi signals and signal strength measurements. " +
-                        "This highlights potential privacy implications of WiFi scanning capabilities.")
-                .setPositiveButton("Understand", null)
-                .show();
+//        new MaterialAlertDialogBuilder(this)
+//                .setTitle("apiKey")
+//                .setMessage("This app demonstrates how device position can be " +
+//                        "approximated using only WiFi signals and signal strength measurements. " +
+//                        "This highlights potential privacy implications of WiFi scanning capabilities.")
+//                .setPositiveButton("Understand", null)
+//                .show();
     }
 
     private boolean shouldShowPermissionRationale() {

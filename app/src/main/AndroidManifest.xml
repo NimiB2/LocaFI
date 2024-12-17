@@ -4,12 +4,10 @@
 
     <!-- WiFi permissions -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-
-    <!-- Hardware feature declaration -->
-    <uses-feature android:name="android.hardware.wifi" android:required="true" />
-
-    <!-- LOCATION feature declaration -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" /> <!-- Hardware feature declaration -->
+    <uses-feature
+        android:name="android.hardware.wifi"
+        android:required="true" /> <!-- LOCATION feature declaration -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
@@ -23,6 +21,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LocaFI"
         tools:targetApi="31">
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <activity
             android:name=".ui.activities.WifiManagement"
             android:exported="false" />
@@ -35,11 +38,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="${MAPS_API_KEY}" />
-
     </application>
 
 </manifest>
