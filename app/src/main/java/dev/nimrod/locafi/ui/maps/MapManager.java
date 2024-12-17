@@ -6,8 +6,10 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -46,6 +48,8 @@ public class MapManager {
     private Map<String, WifiPoint> wifiPointMap;
     private Context context;
     private Marker wifiMarker;
+    private static final int WIFI_DOT_SIZE = 12; // Small dot for WiFi
+    private static final int LOCATION_MARKER_SIZE = 48;
 
     public MapManager(GoogleMap map, Context context) {
         this.map = map;
@@ -94,6 +98,47 @@ public class MapManager {
         });
     }
 
+
+    private BitmapDescriptor createDotMarker(int size, int color) {
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+
+        Paint paint = new Paint();
+        paint.setColor(color);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setAntiAlias(true);
+
+        float radius = size / 2f;
+        canvas.drawCircle(radius, radius, radius, paint);
+
+        return BitmapDescriptorFactory.fromBitmap(bitmap);
+    }
+
+    private BitmapDescriptor createLocationMarker(int size, int color) {
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+
+        Paint paint = new Paint();
+        paint.setColor(color);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setAntiAlias(true);
+
+        // Draw outer circle
+        float radius = size / 2f;
+        canvas.drawCircle(radius, radius, radius, paint);
+
+        // Draw inner circle
+        paint.setColor(Color.WHITE);
+        canvas.drawCircle(radius, radius, radius/2, paint);
+
+        // Draw center dot
+        paint.setColor(color);
+        canvas.drawCircle(radius, radius, radius/4, paint);
+
+        return BitmapDescriptorFactory.fromBitmap(bitmap);
+    }
+
+
     public void updateWifiPoints(List<WifiPoint> wifiPoints) {
         clearMap();
         wifiPointMap.clear();
@@ -101,41 +146,42 @@ public class MapManager {
         for (WifiPoint point : wifiPoints) {
             if (!point.hasValidPosition()) continue;
 
+            // Create small dot for WiFi point
             MarkerOptions markerOptions = new MarkerOptions()
                     .position(point.getPosition().toLatLng())
                     .title(point.getSsid())
-                    .snippet("Signal: " + point.getRssi() + " dBm\n" +
-                            "Distance: " + String.format("%.2f m", point.getDistance()));
+                    .icon(createDotMarker(WIFI_DOT_SIZE, Color.BLUE))
+                    .anchor(0.5f, 0.5f)
+                    .zIndex(1.0f);
 
             Marker marker = map.addMarker(markerOptions);
             wifiMarkers.add(marker);
 
+            // Create signal range circle
             CircleOptions circleOptions = new CircleOptions()
                     .center(point.getPosition().toLatLng())
                     .radius(point.getDistance())
-                    .strokeWidth(2)
+                    .strokeWidth(4) // thicker border
                     .strokeColor(Color.parseColor(point.getSignalColor()))
-                    .fillColor(Color.parseColor(point.getSignalColor()));
+                    .fillColor(Color.TRANSPARENT);
 
             Circle circle = map.addCircle(circleOptions);
             wifiCircles.add(circle);
-
             wifiPointMap.put(marker.getId(), point);
-        }
-
-        if (wifiPoints.size() > 1) {
-            updateIntersectionArea(wifiPoints);
-        }
-
-        if (!wifiPoints.isEmpty()) {
-            zoomToFitAll(wifiPoints);
         }
     }
 
+
     private BitmapDescriptor getBitmapDescriptorFromVector(int vectorResId) {
         Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
-        vectorDrawable.setBounds(0, 0, vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight());
-        Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        // Increase size
+        vectorDrawable.setBounds(0, 0,
+                vectorDrawable.getIntrinsicWidth() * 2, // doubled size
+                vectorDrawable.getIntrinsicHeight() * 2);
+        Bitmap bitmap = Bitmap.createBitmap(
+                vectorDrawable.getIntrinsicWidth() * 2,
+                vectorDrawable.getIntrinsicHeight() * 2,
+                Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         vectorDrawable.draw(canvas);
         return BitmapDescriptorFactory.fromBitmap(bitmap);
@@ -162,7 +208,11 @@ public class MapManager {
                 .title("WiFi-Based Location")
                 .icon(getBitmapDescriptorFromVector(R.drawable.wifi_location_icon));
 
-        map.addMarker(markerOptions);
+
+        if (wifiMarker != null) {
+            wifiMarker.remove();
+        }
+        wifiMarker = map.addMarker(markerOptions);
     }
 
 
@@ -175,13 +225,17 @@ public class MapManager {
         List<LatLng> intersectionPoints = calculateIntersectionPolygon(triangulation);
 
         if (!intersectionPoints.isEmpty()) {
-            PolygonOptions polygonOptions = new PolygonOptions()
-                    .addAll(intersectionPoints)
-                    .strokeWidth(2)
-                    .strokeColor(Color.BLUE)
-                    .fillColor(Color.argb(50, 0, 0, 255));
+            try {
+                PolygonOptions polygonOptions = new PolygonOptions()
+                        .addAll(intersectionPoints)
+                        .strokeWidth(2)
+                        .strokeColor(Color.BLUE)
+                        .fillColor(Color.argb(70, 0, 0, 255)); // More visible blue with transparency
 
-            intersectionArea = map.addPolygon(polygonOptions);
+                intersectionArea = map.addPolygon(polygonOptions);
+            } catch (Exception e) {
+                Log.e("MapManager", "Error creating polygon: " + e.getMessage());
+            }
         }
     }
 

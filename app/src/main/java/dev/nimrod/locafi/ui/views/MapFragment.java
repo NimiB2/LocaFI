@@ -183,22 +183,10 @@ public class MapFragment extends Fragment {
 
     public void updateWifiPoints(List<WifiPoint> wifiPoints) {
         if (googleMap == null) {
-            // If map isn't ready, queue the update
             setOnMapReadyCallback(() -> updateWifiPoints(wifiPoints));
             return;
         }
 
-        if (wifiPoints == null || wifiPoints.isEmpty()) {
-            if (mapManager != null) {
-                mapManager.clearMap();
-            }
-            return;
-        }
-
-        // Store current camera position
-        CameraPosition currentCamera = googleMap.getCameraPosition();
-
-        // Update points on the map
         if (mapManager != null) {
             mapManager.updateWifiPoints(wifiPoints);
             WifiTriangulation triangulation = new WifiTriangulation(wifiPoints);
@@ -206,59 +194,6 @@ public class MapFragment extends Fragment {
 
             if (wifiLocation != null) {
                 mapManager.updateWifiBasedLocation(wifiLocation);
-            }
-        }
-
-
-        // Calculate bounds to check if we need to adjust the camera
-        LatLngBounds.Builder builder = new LatLngBounds.Builder();
-        boolean hasValidPoints = false;
-
-        // Include user location in bounds if available
-        if (lastKnownLocation != null) {
-            builder.include(new LatLng(lastKnownLocation.getLatitude(),
-                    lastKnownLocation.getLongitude()));
-            hasValidPoints = true;
-        }
-
-        // Add WiFi points to bounds
-        for (WifiPoint point : wifiPoints) {
-            if (point.hasValidPosition()) {
-                builder.include(new LatLng(point.getLatitude(), point.getLongitude()));
-                hasValidPoints = true;
-            }
-        }
-
-        // Only adjust camera if this is the first update or points are out of view
-        if (hasValidPoints) {
-            try {
-                LatLngBounds bounds = builder.build();
-
-                // Check if current view contains all points
-                if (!isInitialLocationSet || !currentCamera.target.equals(bounds.getCenter())) {
-                    int padding = 100; // padding in pixels
-                    googleMap.animateCamera(
-                            CameraUpdateFactory.newLatLngBounds(bounds, padding),
-                            1000, // 1 second duration
-                            new GoogleMap.CancelableCallback() {
-                                @Override
-                                public void onFinish() {
-                                    isInitialLocationSet = true;
-                                }
-
-                                @Override
-                                public void onCancel() {
-                                    isInitialLocationSet = true;
-                                }
-                            }
-                    );
-                }
-            } catch (Exception e) {
-                Log.e("MapFragment", "Error adjusting camera: " + e.getMessage());
-                // Fallback to focusing on user location if bounds calculation fails
-                if (lastKnownLocation != null) {
-                    focusOnUserLocation();
-                }
             }
         }
     }

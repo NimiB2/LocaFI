@@ -3,16 +3,12 @@ package dev.nimrod.locafi.models;
 import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class LocationCalculator {
     private static final double EARTH_RADIUS = 6371000; // Earth's radius in meters
 
-    /**
-     * Calculate possible user locations based on WiFi points
-     * @param wifiPoints List of detected WiFi points
-     * @return List of possible locations with their probabilities
-     */
     public static List<WeightedLocation> calculatePossibleLocations(List<WifiPoint> wifiPoints) {
         if (wifiPoints == null || wifiPoints.isEmpty()) {
             return new ArrayList<>();
@@ -25,64 +21,85 @@ public class LocationCalculator {
         return calculateMultiPointLocation(wifiPoints);
     }
 
-    /**
-     * Calculate possible locations for a single WiFi point
-     * @param wifiPoint Single WiFi point
-     * @return List of points on the circle with equal probability
-     */
     private static List<WeightedLocation> calculateSinglePointLocation(WifiPoint wifiPoint) {
-        List<WeightedLocation> locations = new ArrayList<>();
+        // For single WiFi, return a single random point on the circle edge
+        double angle = Math.random() * 2 * Math.PI;
         double distance = wifiPoint.getDistance();
 
-        // Generate points on the circle at regular intervals
-        int numPoints = 36; // Every 10 degrees
-        for (int i = 0; i < numPoints; i++) {
-            double angle = (2 * Math.PI * i) / numPoints;
-            double lat = wifiPoint.getLatitude() + (distance * Math.cos(angle)) / EARTH_RADIUS;
-            double lng = wifiPoint.getLongitude() +
-                    (distance * Math.sin(angle)) / (EARTH_RADIUS * Math.cos(Math.toRadians(wifiPoint.getLatitude())));
+        double lat = wifiPoint.getLatitude() +
+                (distance * Math.cos(angle)) / EARTH_RADIUS;
+        double lng = wifiPoint.getLongitude() +
+                (distance * Math.sin(angle)) / (EARTH_RADIUS * Math.cos(Math.toRadians(wifiPoint.getLatitude())));
 
-            locations.add(new WeightedLocation(new LatLng(lat, lng), 1.0 / numPoints));
-        }
-
+        List<WeightedLocation> locations = new ArrayList<>();
+        locations.add(new WeightedLocation(new LatLng(lat, lng), 1.0));
         return locations;
     }
 
-    /**
-     * Calculate intersection points between multiple WiFi circles
-     * @param wifiPoints List of WiFi points
-     * @return List of intersection points with their probabilities
-     */
-    private static List<WeightedLocation> calculateMultiPointLocation(List<WifiPoint> wifiPoints) {
-        List<WeightedLocation> intersectionPoints = new ArrayList<>();
 
-        // Calculate intersections between each pair of circles
+    private static List<WeightedLocation> calculateMultiPointLocation(List<WifiPoint> wifiPoints) {
+        List<WeightedLocation> possibleLocations = new ArrayList<>();
+
+        // Try to find intersection points first
+        boolean hasIntersections = false;
         for (int i = 0; i < wifiPoints.size() - 1; i++) {
             for (int j = i + 1; j < wifiPoints.size(); j++) {
-                List<LatLng> points = findCircleIntersections(
-                        wifiPoints.get(i),
-                        wifiPoints.get(j)
-                );
-
-                // Weight points based on signal strength and distance
-                for (LatLng point : points) {
-                    double weight = calculateLocationWeight(point, wifiPoints);
-                    intersectionPoints.add(new WeightedLocation(point, weight));
+                List<LatLng> intersections = findCircleIntersections(wifiPoints.get(i), wifiPoints.get(j));
+                if (!intersections.isEmpty()) {
+                    hasIntersections = true;
+                    for (LatLng point : intersections) {
+                        double weight = calculateLocationWeight(point, wifiPoints);
+                        possibleLocations.add(new WeightedLocation(point, weight));
+                    }
                 }
             }
         }
 
-        // If no intersections found, calculate intermediate points
-        if (intersectionPoints.isEmpty()) {
-            return calculateIntermediatePoints(wifiPoints);
+        // If no intersections, calculate weighted point and project to nearest circle edge
+        if (!hasIntersections) {
+            WeightedLocation weightedCenter = calculateWeightedMiddleLocation(wifiPoints);
+            // Find the strongest WiFi point
+            WifiPoint strongestPoint = findStrongestWifiPoint(wifiPoints);
+            // Project the weighted center to the edge of the strongest WiFi's circle
+            LatLng projectedPoint = projectToCircleEdge(
+                    weightedCenter.location,
+                    new LatLng(strongestPoint.getLatitude(), strongestPoint.getLongitude()),
+                    strongestPoint.getDistance()
+            );
+            possibleLocations.add(new WeightedLocation(projectedPoint, 1.0));
         }
 
-        return normalizeWeights(intersectionPoints);
+        return normalizeWeights(possibleLocations);
     }
 
-    /**
-     * Calculate weight for a location based on all WiFi points
-     */
+    private static WifiPoint findStrongestWifiPoint(List<WifiPoint> wifiPoints) {
+        return Collections.max(wifiPoints, (a, b) -> Integer.compare(a.getRssi(), b.getRssi()));
+    }
+
+
+    private static WeightedLocation calculateWeightedMiddleLocation(List<WifiPoint> wifiPoints) {
+        double totalWeight = 0;
+        double weightedLat = 0;
+        double weightedLng = 0;
+
+        for (WifiPoint point : wifiPoints) {
+            // Use signal strength as weight
+            double weight = Math.exp(point.getRssi() / 20.0); // Stronger signal = higher weight
+            weightedLat += point.getLatitude() * weight;
+            weightedLng += point.getLongitude() * weight;
+            totalWeight += weight;
+        }
+
+        return new WeightedLocation(
+                new LatLng(
+                        weightedLat / totalWeight,
+                        weightedLng / totalWeight
+                ),
+                1.0
+        );
+    }
+
+
     private static double calculateLocationWeight(LatLng location, List<WifiPoint> wifiPoints) {
         double weight = 1.0;
         for (WifiPoint point : wifiPoints) {
@@ -99,9 +116,7 @@ public class LocationCalculator {
         return weight;
     }
 
-    /**
-     * Calculate intermediate points when circles don't intersect
-     */
+
     private static List<WeightedLocation> calculateIntermediatePoints(List<WifiPoint> wifiPoints) {
         List<WeightedLocation> intermediatePoints = new ArrayList<>();
 
@@ -126,9 +141,7 @@ public class LocationCalculator {
         return intermediatePoints;
     }
 
-    /**
-     * Find intersection points between two WiFi circles
-     */
+
     private static List<LatLng> findCircleIntersections(WifiPoint p1, WifiPoint p2) {
         double d = calculateDistance(
                 new LatLng(p1.getLatitude(), p1.getLongitude()),
@@ -166,9 +179,7 @@ public class LocationCalculator {
         return intersections;
     }
 
-    /**
-     * Calculate distance between two points in meters
-     */
+
     private static double calculateDistance(LatLng point1, LatLng point2) {
         double lat1 = Math.toRadians(point1.latitude);
         double lat2 = Math.toRadians(point2.latitude);
@@ -186,9 +197,7 @@ public class LocationCalculator {
         return EARTH_RADIUS * c;
     }
 
-    /**
-     * Normalize weights to sum to 1.0
-     */
+
     private static List<WeightedLocation> normalizeWeights(List<WeightedLocation> locations) {
         double totalWeight = 0;
         for (WeightedLocation location : locations) {
@@ -206,9 +215,39 @@ public class LocationCalculator {
         return normalized;
     }
 
-    /**
-     * Class to hold a location with its probability weight
-     */
+
+    private static LatLng projectToCircleEdge(LatLng point, LatLng center, double radius) {
+        double bearing = calculateBearing(center, point);
+
+        double lat1 = Math.toRadians(center.latitude);
+        double lng1 = Math.toRadians(center.longitude);
+        double angularDistance = radius / EARTH_RADIUS;
+
+        double lat2 = Math.asin(
+                Math.sin(lat1) * Math.cos(angularDistance) +
+                        Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing)
+        );
+
+        double lng2 = lng1 + Math.atan2(
+                Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat1),
+                Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2)
+        );
+
+        return new LatLng(Math.toDegrees(lat2), Math.toDegrees(lng2));
+    }
+
+    private static double calculateBearing(LatLng from, LatLng to) {
+        double lat1 = Math.toRadians(from.latitude);
+        double lat2 = Math.toRadians(to.latitude);
+        double dLng = Math.toRadians(to.longitude - from.longitude);
+
+        double y = Math.sin(dLng) * Math.cos(lat2);
+        double x = Math.cos(lat1) * Math.sin(lat2) -
+                Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+
+        return Math.atan2(y, x);
+    }
+
     public static class WeightedLocation {
         public final LatLng location;
         public final double weight;

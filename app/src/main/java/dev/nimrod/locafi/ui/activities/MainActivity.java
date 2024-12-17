@@ -293,7 +293,7 @@ public class MainActivity extends AppCompatActivity{
         CompletableFuture<Location> locationFuture = new CompletableFuture<>();
 
         fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, location -> locationFuture.complete(location))
+                .addOnSuccessListener(this, locationFuture::complete)
                 .addOnFailureListener(e -> locationFuture.complete(null));
 
         try {
