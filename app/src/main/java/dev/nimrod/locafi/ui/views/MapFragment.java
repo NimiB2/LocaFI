@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.maps.CameraUpdate;
@@ -195,6 +196,14 @@ public class MapFragment extends Fragment {
             if (wifiLocation != null) {
                 mapManager.updateWifiBasedLocation(wifiLocation);
             }
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (fusedLocationClient != null) {
+            fusedLocationClient.removeLocationUpdates(new LocationCallback(){});
         }
     }
 }

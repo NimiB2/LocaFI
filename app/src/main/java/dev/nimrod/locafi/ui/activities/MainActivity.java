@@ -2,15 +2,18 @@ package dev.nimrod.locafi.ui.activities;
 
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.net.Uri;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
@@ -52,6 +55,7 @@ import dev.nimrod.locafi.BuildConfig;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WifiPoint;
 import dev.nimrod.locafi.models.WifiPosition;
+import dev.nimrod.locafi.services.MapDataService;
 import dev.nimrod.locafi.ui.adapters.WifiListAdapter;
 import dev.nimrod.locafi.ui.views.LocationView;
 import dev.nimrod.locafi.ui.views.MapFragment;
@@ -62,7 +66,8 @@ public class MainActivity extends AppCompatActivity{
     private FusedLocationProviderClient fusedLocationClient;
 
     private MapFragment mapFragment;
-
+    private MapDataService mapService;
+    private ServiceConnection serviceConnection;
 
     // UI Components
     private RecyclerView wifiListRecyclerView;
@@ -81,6 +86,7 @@ public class MainActivity extends AppCompatActivity{
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
+        initializeServiceConnection();
         initializeViews();
         initializeServices();
         setupMapFragment();
@@ -93,6 +99,26 @@ public class MainActivity extends AppCompatActivity{
             Log.e("MainActivity", "Google Play Services not available");
             return;
         }
+    }
+
+    private void initializeServiceConnection() {
+        serviceConnection = new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                MapDataService.LocalBinder binder = (MapDataService.LocalBinder) service;
+                mapService = binder.getService();
+                setupMapDataObservers();
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                mapService = null;
+            }
+        };
+
+        // Bind to the service
+        bindService(new Intent(this, MapDataService.class),
+                serviceConnection, Context.BIND_AUTO_CREATE);
     }
 
     private void initializeServices() {
@@ -158,7 +184,6 @@ public class MainActivity extends AppCompatActivity{
 
     private void setupListeners() {
         // Scan button listener
-        scanButton.setOnClickListener(v -> startWifiScan());
 
         // Manage button listener
         manageButton.setOnClickListener(v -> {
@@ -376,13 +401,8 @@ public class MainActivity extends AppCompatActivity{
     }
 
     private void updateVisibility(boolean hasData) {
-        // Visualization
-        findViewById(R.id.main_LLC_empty_visualization).setVisibility(hasData ? View.GONE : View.VISIBLE);
-        findViewById(R.id.main_VIS_location).setVisibility(hasData ? View.VISIBLE : View.GONE);
-
-        // WiFi List
-        findViewById(R.id.main_LLC_empty_list).setVisibility(hasData ? View.GONE : View.VISIBLE);
-        findViewById(R.id.main_RCV_wifiList).setVisibility(hasData ? View.VISIBLE : View.GONE);
+        visualizationContainer.setVisibility(View.VISIBLE);
+        wifiListRecyclerView.setVisibility(hasData ? View.VISIBLE : View.GONE);
     }
 
     private void updateVisualization(List<ScanResult> results) {
@@ -448,6 +468,35 @@ public class MainActivity extends AppCompatActivity{
         super.onPause();
         unregisterReceiver(wifiScanReceiver);
     }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (serviceConnection != null) {
+            unbindService(serviceConnection);
+        }
+    }
+
+    private void setupMapDataObservers() {
+        mapService.getWifiPointsData().observe(this, wifiPoints -> {
+            if (mapFragment != null) {
+                mapFragment.updateWifiPoints(wifiPoints);
+            }
+        });
+
+        mapService.getUserLocationData().observe(this, location -> {
+            if (mapFragment != null) {
+                mapFragment.updateUserLocation(location);
+            }
+        });
+
+        mapService.getIsMapReady().observe(this, isReady -> {
+            findViewById(R.id.main_LLC_empty_visualization).setVisibility(
+                    isReady ? View.GONE : View.VISIBLE);
+            findViewById(R.id.main_VIS_location).setVisibility(
+                    isReady ? View.VISIBLE : View.GONE);
+        });
+    }
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
