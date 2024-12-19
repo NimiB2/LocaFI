@@ -84,8 +84,22 @@ public class MapFragment extends Fragment {
         googleMap.getUiSettings().setZoomGesturesEnabled(true);
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
 
-        googleMap.setMinZoomPreference(15.0f);
-        googleMap.setMaxZoomPreference(21.0f);
+        // Disable the My Location button
+        googleMap.getUiSettings().setMyLocationButtonEnabled(false);
+
+        // Safely disable the location layer with permission check
+        if (ActivityCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(requireContext(),
+                        Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            googleMap.setMyLocationEnabled(false);
+        }
+
+        googleMap.setMinZoomPreference(3.0f);
+        googleMap.setMaxZoomPreference(22.0f);
+
+        googleMap.setMyLocationEnabled(false);
+        googleMap.getUiSettings().setMyLocationButtonEnabled(false);
     }
 
     private void getCurrentLocation(boolean isInitial) {
@@ -123,14 +137,16 @@ public class MapFragment extends Fragment {
     }
 
     public void updateUserLocation(Location location) {
-        if (googleMap == null) {
-            setOnMapReadyCallback(() -> updateUserLocation(location));
-            return;
-        }
-        if (mapManager != null && location != null) {
-            lastKnownLocation = location;
-            mapManager.updateUserLocation(location);
-        }
+        // Comment out or remove the marker creation/update code
+    /* if (userMarker == null) {
+        MarkerOptions markerOptions = new MarkerOptions()
+            .position(userLatLng)
+            .title("Real GPS Location")
+            .icon(getBitmapDescriptorFromVector(R.drawable.gps_location_icon));
+        userMarker = map.addMarker(markerOptions);
+    } else {
+        userMarker.setPosition(userLatLng);
+    } */
     }
 
     // Override the zoomToFitWifiPoints method to preserve camera position when needed

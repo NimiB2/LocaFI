@@ -6,7 +6,9 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" /> <!-- Hardware feature declaration -->
     <uses-feature
         android:name="android.hardware.wifi"
-        android:required="true" /> <!-- LOCATION feature declaration -->
+        android:required="true" />
+
+    <!-- LOCATION feature declaration -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 

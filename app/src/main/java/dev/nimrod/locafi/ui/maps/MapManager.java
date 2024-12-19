@@ -43,7 +43,7 @@ public class MapManager {
     private GoogleMap map;
     private List<Circle> wifiCircles;
     private List<Marker> wifiMarkers;
-    private Marker userMarker;
+    //private Marker userMarker;
     private Polygon intersectionArea;
     private Map<String, WifiPoint> wifiPointMap;
     private Context context;
@@ -64,38 +64,14 @@ public class MapManager {
         map.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         map.getUiSettings().setZoomControlsEnabled(true);
         map.getUiSettings().setCompassEnabled(true);
-        map.getUiSettings().setMyLocationButtonEnabled(true);
+        map.getUiSettings().setMyLocationButtonEnabled(false);  // Disable location button
 
-        // Add these lines:
-        map.setMinZoomPreference(15); // Set minimum zoom level
-        map.setMaxZoomPreference(20); // Set maximum zoom level
-
-        // Enable my location layer if permission is granted
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
-                PackageManager.PERMISSION_GRANTED) {
-            map.setMyLocationEnabled(true);
+        // Remove all location UI but keep functionality
+        if (ActivityCompat.checkSelfPermission(context,
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            map.setMyLocationEnabled(false);
         }
 
-        map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
-            @Override
-            public View getInfoWindow(Marker marker) {
-                return null; // Default window
-            }
-
-            @Override
-            public View getInfoContents(Marker marker) {
-                LinearLayout infoView = new LinearLayout(context);
-                infoView.setOrientation(LinearLayout.VERTICAL);
-
-                TextView title = new TextView(context);
-                title.setText(marker.getTitle());
-                title.setTextColor(Color.BLACK);
-                title.setTextSize(16);
-                infoView.addView(title);
-
-                return infoView;
-            }
-        });
     }
 
 
@@ -190,16 +166,16 @@ public class MapManager {
     public void updateUserLocation(Location location) {
         LatLng userLatLng = new LatLng(location.getLatitude(), location.getLongitude());
 
-        if (userMarker == null) {
-            MarkerOptions markerOptions = new MarkerOptions()
-                    .position(userLatLng)
-                    .title("Real GPS Location")
-                    .icon(getBitmapDescriptorFromVector(R.drawable.gps_location_icon));
-
-            userMarker = map.addMarker(markerOptions);
-        } else {
-            userMarker.setPosition(userLatLng);
-        }
+//        if (userMarker == null) {
+//            MarkerOptions markerOptions = new MarkerOptions()
+//                    .position(userLatLng)
+//                    .title("Real GPS Location")
+//                    .icon(getBitmapDescriptorFromVector(R.drawable.gps_location_icon));
+//
+//            userMarker = map.addMarker(markerOptions);
+//        } else {
+//            userMarker.setPosition(userLatLng);
+//        }
     }
 
     public void updateWifiBasedLocation(LatLng wifiLocation) {
