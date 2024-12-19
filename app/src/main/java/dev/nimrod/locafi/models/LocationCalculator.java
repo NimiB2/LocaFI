@@ -12,7 +12,11 @@ public class LocationCalculator {
     private static final double EARTH_RADIUS = 6371000; // Earth's radius in meters
 
     public static List<WeightedLocation> calculatePossibleLocations(List<WifiPoint> wifiPoints) {
+        Log.d("LocationCalculator", "Starting location calculation with " +
+                (wifiPoints != null ? wifiPoints.size() : 0) + " points");
+
         if (wifiPoints == null || wifiPoints.isEmpty()) {
+            Log.d("LocationCalculator", "No WiFi points available");
             return new ArrayList<>();
         }
 
@@ -20,6 +24,7 @@ public class LocationCalculator {
         double totalWeight = 0;
         double weightedLat = 0;
         double weightedLng = 0;
+
 
         for (WifiPoint point : wifiPoints) {
             if (!point.hasValidPosition()) {
@@ -55,6 +60,8 @@ public class LocationCalculator {
         result.add(new WeightedLocation(estimatedLocation, 1.0));
 
 
+        Log.d("LocationCalculator", "Calculated location: " +
+                estimatedLocation.latitude + ", " + estimatedLocation.longitude);
         return result;
     }
 

@@ -180,20 +180,24 @@ public class MainActivity extends AppCompatActivity {
                 .commit();
 
         mapFragment.setOnMapReadyCallback(() -> {
-            Log.d("MainActivity", "Map is ready");
-            // First get location, then start WiFi scan
-
+            Log.d(TAG, "Map is ready");
+            // Initialize location immediately when map is ready
+            initializeLocation();
         });
     }
 
     private void setupMapDataObservers() {
         mapService.getWifiPointsData().observe(this, wifiPoints -> {
+            Log.d(TAG, "Received " + (wifiPoints != null ? wifiPoints.size() : 0) + " WiFi points");
+
             if (mapFragment != null) {
                 mapFragment.updateWifiPoints(wifiPoints);
             }
         });
 
         mapService.getUserLocationData().observe(this, location -> {
+            Log.d(TAG, "Received user location update: " +
+                    (location != null ? location.getLatitude() + ", " + location.getLongitude() : "null"));
             if (mapFragment != null) {
                 mapFragment.updateUserLocation(location);
             }
@@ -281,6 +285,7 @@ public class MainActivity extends AppCompatActivity {
         if (!hasPermissions(permissions)) {
             ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
         }
+        Log.d(TAG, "MainActivity initialized");
     }
 
     private boolean hasPermissions(String[] permissions) {

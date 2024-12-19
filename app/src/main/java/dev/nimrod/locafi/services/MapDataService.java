@@ -131,10 +131,9 @@ public class MapDataService extends Service {
     }
 
     public void updateBaseLocation(Location location) {
+        Log.d(TAG, "Updating base location: " + location.getLatitude() + ", " + location.getLongitude());
         this.baseLocation = location;
         userLocationData.postValue(location);
-        Log.d(TAG, "Base Location Updated: " +
-                location.getLatitude() + ", " + location.getLongitude());
     }
 
     private List<WifiPoint> convertToWifiPoints(List<ScanResult> scanResults) {
