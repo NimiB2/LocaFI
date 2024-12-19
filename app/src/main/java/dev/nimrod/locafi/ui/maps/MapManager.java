@@ -102,21 +102,21 @@ public class MapManager {
         Canvas canvas = new Canvas(bitmap);
 
         Paint paint = new Paint();
-        paint.setColor(color);
-        paint.setStyle(Paint.Style.FILL);
         paint.setAntiAlias(true);
 
-        // Draw outer circle
+        // Outer circle
+        paint.setColor(color);
+        paint.setStyle(Paint.Style.FILL);
         float radius = size / 2f;
         canvas.drawCircle(radius, radius, radius, paint);
 
-        // Draw inner circle
+        // Inner circle
         paint.setColor(Color.WHITE);
-        canvas.drawCircle(radius, radius, radius/2, paint);
+        canvas.drawCircle(radius, radius, radius * 0.6f, paint);
 
-        // Draw center dot
+        // Center
         paint.setColor(color);
-        canvas.drawCircle(radius, radius, radius/4, paint);
+        canvas.drawCircle(radius, radius, radius * 0.3f, paint);
 
         return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
@@ -145,11 +145,9 @@ public class MapManager {
             CircleOptions circleOptions = new CircleOptions()
                     .center(point.getPosition().toLatLng())
                     .radius(point.getDistance())
-                    .strokeWidth(2)
+                    .strokeWidth(3)
                     .strokeColor(Color.parseColor(point.getSignalColor()))
-                    .fillColor(Color.argb(
-                            (int)(point.getCircleOpacity() * 255),
-                            0, 0, 255));
+                    .fillColor(Color.TRANSPARENT);
 
             Circle circle = map.addCircle(circleOptions);
             wifiCircles.add(circle);
@@ -168,32 +166,49 @@ public class MapManager {
 
     private void updateEstimatedLocation(LatLng location, List<WifiPoint> wifiPoints) {
         final LatLng oldLocation = wifiMarker != null ? wifiMarker.getPosition() : null;
-        final double accuracyRadius = calculateAccuracyRadius(wifiPoints);
 
         if (wifiMarker == null) {
-            // First time - create marker without animation
+            // Create marker without animation
             MarkerOptions markerOptions = new MarkerOptions()
                     .position(location)
-                    .title("Estimated Position")
-                    .icon(createLocationMarker(LOCATION_MARKER_SIZE, Color.RED))
+                    .title("WIFI LOCATION")
+                    .icon(createLocationMarker(LOCATION_MARKER_SIZE, Color.parseColor("#FF8C00"))) // Orange color
                     .anchor(0.5f, 0.5f)
                     .zIndex(2.0f);
             wifiMarker = map.addMarker(markerOptions);
-
-            // Create accuracy circle
-            CircleOptions circleOptions = new CircleOptions()
-                    .center(location)
-                    .radius(accuracyRadius)
-                    .strokeWidth(2)
-                    .strokeColor(Color.RED)
-                    .fillColor(Color.argb(50, 255, 0, 0));
-            accuracyCircle = map.addCircle(circleOptions);
         } else {
             // Animate marker movement
-            animateMarkerMovement(oldLocation, location, accuracyRadius);
+            animateMarkerMovement(oldLocation, location);
         }
     }
 
+    // Simplify the animation method
+    private void animateMarkerMovement(LatLng start, LatLng end) {
+        if (start == null || end == null) return;
+
+        final long startTime = SystemClock.uptimeMillis();
+        final double latDiff = end.latitude - start.latitude;
+        final double lngDiff = end.longitude - start.longitude;
+
+        animationHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                long elapsed = SystemClock.uptimeMillis() - startTime;
+                float t = Math.min((float) elapsed / ANIMATION_DURATION, 1f);
+
+                float interpolatedFraction = interpolateEaseInOut(t);
+
+                double lat = start.latitude + (latDiff * interpolatedFraction);
+                double lng = start.longitude + (lngDiff * interpolatedFraction);
+                LatLng newPosition = new LatLng(lat, lng);
+                wifiMarker.setPosition(newPosition);
+
+                if (t < 1f) {
+                    animationHandler.post(this);
+                }
+            }
+        });
+    }
     private void animateMarkerMovement(LatLng start, LatLng end, double finalRadius) {
         if (start == null || end == null) return;
 

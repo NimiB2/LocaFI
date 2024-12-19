@@ -12,59 +12,67 @@ public class LocationCalculator {
     private static final double EARTH_RADIUS = 6371000; // Earth's radius in meters
 
     public static List<WeightedLocation> calculatePossibleLocations(List<WifiPoint> wifiPoints) {
-        Log.d("LocationCalculator", "Starting location calculation with " +
-                (wifiPoints != null ? wifiPoints.size() : 0) + " points");
-
         if (wifiPoints == null || wifiPoints.isEmpty()) {
-            Log.d("LocationCalculator", "No WiFi points available");
             return new ArrayList<>();
         }
 
-        // Convert RSSI to weights using exponential scaling
-        double totalWeight = 0;
-        double weightedLat = 0;
-        double weightedLng = 0;
+        List<WeightedLocation> result = new ArrayList<>();
 
+        if (wifiPoints.size() == 1) {
+            // For single WiFi, place point on circle edge
+            WifiPoint point = wifiPoints.get(0);
 
-        for (WifiPoint point : wifiPoints) {
             if (!point.hasValidPosition()) {
-                continue;
+                return result;
             }
 
-            // Convert RSSI to weight (stronger signal = higher weight)
-            // Add 100 to make all values positive, then exp to emphasize stronger signals
-            double weight = Math.exp((point.getRssi() + 100) / 10.0);
+            // Random angle between 0 and 360 degrees
+            double angle = Math.random() * 2 * Math.PI;
+            double distance = point.getDistance();
 
-            weightedLat += point.getLatitude() * weight;
-            weightedLng += point.getLongitude() * weight;
-            totalWeight += weight;
+            // Calculate position on circle edge
+            double lat = point.getLatitude() +
+                    (distance * Math.cos(angle)) / 111111.0; // Convert meters to degrees
+            double lng = point.getLongitude() +
+                    (distance * Math.sin(angle)) / (111111.0 * Math.cos(Math.toRadians(point.getLatitude())));
+
+            result.add(new WeightedLocation(new LatLng(lat, lng), 1.0));
+            return result;
+        } else {
+            // Multiple WiFi points - use weighted centroid
+            double totalWeight = 0;
+            double weightedLat = 0;
+            double weightedLng = 0;
+
+            for (WifiPoint point : wifiPoints) {
+                if (!point.hasValidPosition()) {
+                    continue;
+                }
+
+                // Convert RSSI to weight (stronger signal = higher weight)
+                // Add 100 to make all values positive, then exp to emphasize stronger signals
+                double weight = Math.exp((point.getRssi() + 100) / 10.0);
+
+                weightedLat += point.getLatitude() * weight;
+                weightedLng += point.getLongitude() * weight;
+                totalWeight += weight;
+            }
+
+            // If no valid points were found, return empty list
+            if (totalWeight == 0) {
+                return result;
+            }
+
+            // Calculate the weighted center
+            LatLng estimatedLocation = new LatLng(
+                    weightedLat / totalWeight,
+                    weightedLng / totalWeight
+            );
+
+            result.add(new WeightedLocation(estimatedLocation, 1.0));
+            return result;
         }
-
-        // If no valid points were found, return empty list
-        if (totalWeight == 0) {
-            return new ArrayList<>();
-        }
-
-        // Calculate the weighted center
-        LatLng estimatedLocation = new LatLng(
-                weightedLat / totalWeight,
-                weightedLng / totalWeight
-        );
-
-        Log.d("LocationCalculator", "Processing " + wifiPoints.size() + " WiFi points");
-        Log.d("LocationCalculator", "Calculated position: " +
-                estimatedLocation.latitude + ", " + estimatedLocation.longitude);
-
-        // Create result with confidence = 1.0 (we'll improve this later)
-        List<WeightedLocation> result = new ArrayList<>();
-        result.add(new WeightedLocation(estimatedLocation, 1.0));
-
-
-        Log.d("LocationCalculator", "Calculated location: " +
-                estimatedLocation.latitude + ", " + estimatedLocation.longitude);
-        return result;
     }
-
     private static WifiPoint findStrongestWifiPoint(List<WifiPoint> wifiPoints) {
         return Collections.max(wifiPoints, (a, b) -> Integer.compare(a.getRssi(), b.getRssi()));
     }
