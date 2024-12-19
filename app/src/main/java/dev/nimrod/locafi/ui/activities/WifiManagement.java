@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import dev.nimrod.locafi.R;
+import dev.nimrod.locafi.models.WifiPoint;
 import dev.nimrod.locafi.ui.adapters.WifiListAdapter;
 
 public class WifiManagement extends AppCompatActivity implements WifiListAdapter.OnWifiPointClickListener {
@@ -174,8 +175,12 @@ public class WifiManagement extends AppCompatActivity implements WifiListAdapter
         if (selectedWifiPoint != null) {
             selectedNameTextView.setText(selectedWifiPoint.SSID);
             selectedStrengthTextView.setText(String.format("Signal Strength: %d dBm", selectedWifiPoint.level));
-            double distance = calculateDistance(selectedWifiPoint.level);
-            selectedDistanceTextView.setText(String.format("Approximate Distance: %.2f meters", distance));
+            WifiPoint tempPoint = new WifiPoint(
+                    selectedWifiPoint.SSID,
+                    selectedWifiPoint.BSSID,
+                    selectedWifiPoint.level
+            );
+            selectedDistanceTextView.setText(String.format("Approximate Distance: %.2f meters", tempPoint.getDistance()));
         }
     }
 

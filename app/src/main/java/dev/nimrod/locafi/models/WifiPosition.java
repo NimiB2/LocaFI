@@ -1,5 +1,7 @@
 package dev.nimrod.locafi.models;
 
+import android.location.Location;
+
 import androidx.annotation.NonNull;
 
 import com.google.android.gms.maps.model.LatLng;
@@ -25,9 +27,23 @@ public class WifiPosition {
         this(latLng.latitude, latLng.longitude);
     }
 
-    /**
-     * Calculate distance to another position in meters
-     */
+    public void updateFromBaseLocation(Location baseLocation, double distance, double bearing) {
+        double R = 6371000; // Earth's radius in meters
+        double lat1 = Math.toRadians(baseLocation.getLatitude());
+        double lon1 = Math.toRadians(baseLocation.getLongitude());
+        double brng = Math.toRadians(bearing);
+        double d = distance;
+
+        double lat2 = Math.asin(Math.sin(lat1) * Math.cos(d/R) +
+                Math.cos(lat1) * Math.sin(d/R) * Math.cos(brng));
+        double lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d/R) * Math.cos(lat1),
+                Math.cos(d/R) - Math.sin(lat1) * Math.sin(lat2));
+
+        this.latitude = Math.toDegrees(lat2);
+        this.longitude = Math.toDegrees(lon2);
+        this.accuracy = distance * 0.2; // Estimate accuracy as 20% of distance
+        this.timestamp = System.currentTimeMillis();
+    }
     public double distanceTo(WifiPosition other) {
         final int R = 6371000; // Earth's radius in meters
 
@@ -47,25 +63,15 @@ public class WifiPosition {
         return R * c;
     }
 
-    /**
-     * Check if this position is within a certain radius of another position
-     */
     public boolean isWithinRadius(WifiPosition other, double radiusMeters) {
         return distanceTo(other) <= radiusMeters;
     }
 
-    /**
-     * Convert to Google Maps LatLng
-     */
     public LatLng toLatLng() {
         return new LatLng(latitude, longitude);
     }
 
-    /**
-     * Create a new position at a given distance and bearing from this position
-     * @param distanceMeters Distance in meters
-     * @param bearingDegrees Bearing in degrees (0 = north, 90 = east, etc.)
-     */
+
     public WifiPosition calculateDestination(double distanceMeters, double bearingDegrees) {
         final int R = 6371000; // Earth's radius in meters
 

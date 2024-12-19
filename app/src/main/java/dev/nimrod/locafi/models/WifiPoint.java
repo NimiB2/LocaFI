@@ -10,34 +10,23 @@ public class WifiPoint {
     private int rssi;
     private double distance;
     private WifiPosition position;
-    private int signalLevel; // Signal level from 0 to 4
+    private int signalLevel;
     private static final int MAX_SIGNAL_LEVEL = 4;
 
-    public WifiPoint(String ssid, String bssid, int rssi, double distance) {
+    public WifiPoint(String ssid, String bssid, int rssi) {
         this.ssid = ssid;
         this.bssid = bssid;
         this.rssi = rssi;
-        this.distance = distance;
         this.signalLevel = calculateSignalLevel();
+        calculateDistance();
     }
 
-    public WifiPoint(String ssid, String bssid, int rssi, double distance, WifiPosition position) {
-        this(ssid, bssid, rssi, distance);
-        this.position = position;
-    }
 
-    /**
-     * Calculate signal level based on RSSI value
-     * @return signal level from 0 to 4
-     */
     private int calculateSignalLevel() {
         return WifiManager.calculateSignalLevel(rssi, MAX_SIGNAL_LEVEL + 1);
     }
 
-    /**
-     * Get signal color based on signal level
-     * @return hex color string
-     */
+
     public String getSignalColor() {
         switch (signalLevel) {
             case 4:
@@ -53,26 +42,30 @@ public class WifiPoint {
         }
     }
 
-    /**
-     * Calculate circle opacity based on signal strength
-     * @return opacity value between 0.2 and 0.6
-     */
+
     public double getCircleOpacity() {
         return 0.2 + (signalLevel * 0.1); // 0.2 to 0.6 based on signal level
     }
 
-    /**
-     * Check if the WiFi point has a valid position
-     */
+
     public boolean hasValidPosition() {
         return position != null && position.isValid();
     }
 
-    /**
-     * Get the confidence radius based on signal strength and distance
-     * Stronger signals have smaller radius (more confident)
-     * @return radius in meters
-     */
+    public void calculateDistance() {
+        // Environmental factor (typically between 2.0 to 4.0)
+        double environmentalFactor = 2.4;
+
+        // Reference RSSI at 1 meter distance (calibration value)
+        int referenceRSSI = -40;
+
+        // Calculate distance using log-distance path loss model
+        this.distance = Math.pow(10.0, (referenceRSSI - rssi) / (10 * environmentalFactor));
+
+        // Add bounds to prevent unrealistic values
+        this.distance = Math.min(Math.max(this.distance, 1.0), 50.0);
+    }
+
     public double getConfidenceRadius() {
         // Base radius on distance and signal strength
         double baseRadius = distance * (1 + (MAX_SIGNAL_LEVEL - signalLevel) * 0.2);

@@ -2,11 +2,13 @@ package dev.nimrod.locafi.ui.activities;
 
 
 import android.animation.Animator;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.ImageView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.imageview.ShapeableImageView;
@@ -14,6 +16,7 @@ import com.google.android.material.imageview.ShapeableImageView;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.services.MapDataService;
 
+@SuppressLint("CustomSplashScreen")
 public class SplashActivity extends AppCompatActivity {
     private ShapeableImageView logoImage;
 
@@ -22,11 +25,18 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
-        // Start the service
-        startService(new Intent(this, MapDataService.class));
-
-        logoImage = findViewById(R.id.splash_IMG_logo);
+        initializeViews();
+        initializeServiceConnection();
         startAnimation();
+    }
+
+
+    private void initializeViews() {
+        logoImage = findViewById(R.id.splash_IMG_logo);
+    }
+
+    private void initializeServiceConnection() {
+        startService(new Intent(this, MapDataService.class));
     }
 
     private void startAnimation() {
@@ -38,13 +48,21 @@ public class SplashActivity extends AppCompatActivity {
                 .setInterpolator(new AccelerateDecelerateInterpolator())
                 .setListener(new Animator.AnimatorListener() {
                     @Override
-                    public void onAnimationEnd(Animator animation) {
+                    public void onAnimationEnd(@NonNull Animator animation) {
                         startMainActivity();
                     }
 
-                    @Override public void onAnimationStart(Animator animation) {}
-                    @Override public void onAnimationCancel(Animator animation) {}
-                    @Override public void onAnimationRepeat(Animator animation) {}
+                    @Override
+                    public void onAnimationStart(@NonNull Animator animation) {
+                    }
+
+                    @Override
+                    public void onAnimationCancel(@NonNull Animator animation) {
+                    }
+
+                    @Override
+                    public void onAnimationRepeat(@NonNull Animator animation) {
+                    }
                 });
     }
 

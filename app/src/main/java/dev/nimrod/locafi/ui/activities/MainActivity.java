@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Settings;
@@ -60,7 +61,7 @@ import dev.nimrod.locafi.ui.adapters.WifiListAdapter;
 import dev.nimrod.locafi.ui.views.LocationView;
 import dev.nimrod.locafi.ui.views.MapFragment;
 
-public class MainActivity extends AppCompatActivity{
+public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_CODE = 100;
     private static final String TAG = "MainActivity";
     private FusedLocationProviderClient fusedLocationClient;
@@ -124,6 +125,35 @@ public class MainActivity extends AppCompatActivity{
 
     }
 
+    private void initializeLocation() {
+        if (checkLocationPermission()) {
+            requestNewLocation();
+        }
+    }
+
+    private void requestNewLocation() {
+        if (ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        LocationRequest locationRequest = LocationRequest.create()
+                .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+                .setInterval(10000);  // Update every 10 seconds
+
+        fusedLocationClient.requestLocationUpdates(locationRequest,
+                new LocationCallback() {
+                    @Override
+                    public void onLocationResult(@NonNull LocationResult locationResult) {
+                        Location location = locationResult.getLastLocation();
+                        if (location != null && mapService != null) {
+                            mapService.updateBaseLocation(location);
+                        }
+                    }
+                },
+                Looper.getMainLooper());
+    }
+
     private void initializeViews() {
         // Initialize toolbar
         MaterialToolbar toolbar = findViewById(R.id.main_MTB_toolbar);
@@ -131,7 +161,7 @@ public class MainActivity extends AppCompatActivity{
 
         // Initialize other views
         wifiListRecyclerView = findViewById(R.id.main_RCV_wifiList);
-        scanButton = findViewById(R.id.main_BTN_scan);          // Initialize buttons first
+        scanButton = findViewById(R.id.main_BTN_scan);
         manageButton = findViewById(R.id.main_BTN_manage);
         visualizationContainer = findViewById(R.id.main_VIS_location);
 
@@ -156,13 +186,68 @@ public class MainActivity extends AppCompatActivity{
         });
     }
 
-    private boolean checkLocationPermission() {
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestLocationPermissions();
-            return false;
-        }
-        return true;
+    private void setupMapDataObservers() {
+        mapService.getWifiPointsData().observe(this, wifiPoints -> {
+            if (mapFragment != null) {
+                mapFragment.updateWifiPoints(wifiPoints);
+            }
+        });
+
+        mapService.getUserLocationData().observe(this, location -> {
+            if (mapFragment != null) {
+                mapFragment.updateUserLocation(location);
+            }
+        });
+
+        mapService.getIsMapReady().observe(this, isReady -> {
+            findViewById(R.id.main_LLC_empty_visualization).setVisibility(
+                    isReady ? View.GONE : View.VISIBLE);
+            findViewById(R.id.main_VIS_location).setVisibility(
+                    isReady ? View.VISIBLE : View.GONE);
+        });
+    }
+
+    private void setupListeners() {
+        // Add scan button listener
+        scanButton.setOnClickListener(v -> {
+            if (mapService != null) {
+                // Show loading indicator or progress
+                scanButton.setEnabled(false);
+
+                // Trigger location update first
+                if (checkLocationPermission()) {
+                    requestNewLocation();
+                }
+
+                // Start WiFi scan - the service will handle the scanning process
+                mapService.performWifiScan();
+
+                // Re-enable button after a delay (e.g., 2 seconds)
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    scanButton.setEnabled(true);
+                }, 2000);
+            } else {
+                Toast.makeText(this, "Service not ready", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Existing manage button listener
+        manageButton.setOnClickListener(v -> {
+            Intent intent = new Intent(this, WifiManagement.class);
+            startActivity(intent);
+        });
+    }
+    private void testPermissions() {
+        Log.d(TAG, "Testing Permissions:");
+        Log.d(TAG, "WiFi State Permission: " +
+                checkSelfPermission(Manifest.permission.ACCESS_WIFI_STATE));
+        Log.d(TAG, "Location Permission: " +
+                checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION));
+    }
+    private void setupRecyclerView() {
+        wifiListAdapter = new WifiListAdapter(new ArrayList<>());
+        wifiListRecyclerView.setAdapter(wifiListAdapter);
+        wifiListRecyclerView.setLayoutManager(new LinearLayoutManager(this));
     }
 
     private boolean checkGooglePlayServices() {
@@ -177,20 +262,13 @@ public class MainActivity extends AppCompatActivity{
         return true;
     }
 
-    private void setupListeners() {
-        // Scan button listener
-
-        // Manage button listener
-        manageButton.setOnClickListener(v -> {
-            Intent intent = new Intent(this, WifiManagement.class);
-            startActivity(intent);
-        });
-    }
-
-    private void setupRecyclerView() {
-        wifiListAdapter = new WifiListAdapter(new ArrayList<>());
-        wifiListRecyclerView.setAdapter(wifiListAdapter);
-        wifiListRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+    private boolean checkLocationPermission() {
+        if (ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestLocationPermissions();
+            return false;
+        }
+        return true;
     }
 
     private void checkPermissions() {
@@ -215,55 +293,6 @@ public class MainActivity extends AppCompatActivity{
         return true;
     }
 
-
-    private Location getLastKnownLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED) {
-            requestLocationPermissions();
-            return null;
-        }
-        // Using a CompletableFuture to handle the async nature of getLastLocation
-        CompletableFuture<Location> locationFuture = new CompletableFuture<>();
-
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, locationFuture::complete)
-                .addOnFailureListener(e -> locationFuture.complete(null));
-
-        try {
-            Location location = locationFuture.get(1, TimeUnit.SECONDS);
-            if (location == null) {
-                // If last location is null, try getting current location
-                requestNewLocation();
-            }
-            return location;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private void requestNewLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-
-        LocationRequest locationRequest = LocationRequest.create()
-                .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-                .setNumUpdates(1)
-                .setInterval(0);
-
-        fusedLocationClient.requestLocationUpdates(locationRequest, new LocationCallback() {
-            @Override
-            public void onLocationResult(@NonNull LocationResult locationResult) {
-                super.onLocationResult(locationResult);
-                Location location = locationResult.getLastLocation();
-                if (location != null) {
-                    mapFragment.updateUserLocation(location);
-                }
-            }
-        }, Looper.getMainLooper());
-    }
-
     private void requestLocationPermissions() {
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Location Permission Required")
@@ -280,52 +309,10 @@ public class MainActivity extends AppCompatActivity{
                 .show();
     }
 
-
-
     private boolean shouldShowPermissionRationale() {
         return ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_WIFI_STATE) ||
                 ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CHANGE_WIFI_STATE);
     }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (serviceConnection != null) {
-            unbindService(serviceConnection);
-        }
-    }
-
-    private void setupMapDataObservers() {
-        mapService.getWifiPointsData().observe(this, wifiPoints -> {
-            if (mapFragment != null) {
-                mapFragment.updateWifiPoints(wifiPoints);
-            }
-        });
-
-        mapService.getUserLocationData().observe(this, location -> {
-            if (mapFragment != null) {
-                mapFragment.updateUserLocation(location);
-            }
-        });
-
-        mapService.getIsMapReady().observe(this, isReady -> {
-            findViewById(R.id.main_LLC_empty_visualization).setVisibility(
-                    isReady ? View.GONE : View.VISIBLE);
-            findViewById(R.id.main_VIS_location).setVisibility(
-                    isReady ? View.VISIBLE : View.GONE);
-        });
-    }
-
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
@@ -361,6 +348,33 @@ public class MainActivity extends AppCompatActivity{
             }
         }
     }
+
+    private Location getLastKnownLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED) {
+            requestLocationPermissions();
+            return null;
+        }
+        // Using a CompletableFuture to handle the async nature of getLastLocation
+        CompletableFuture<Location> locationFuture = new CompletableFuture<>();
+
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(this, locationFuture::complete)
+                .addOnFailureListener(e -> locationFuture.complete(null));
+
+        try {
+            Location location = locationFuture.get(1, TimeUnit.SECONDS);
+            if (location == null) {
+                // If last location is null, try getting current location
+                requestNewLocation();
+            }
+            return location;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+
     private void showLocationSettingsDialog() {
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Location Permission Required")
@@ -378,5 +392,21 @@ public class MainActivity extends AppCompatActivity{
                 .show();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+    }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (serviceConnection != null) {
+            unbindService(serviceConnection);
+        }
+    }
 }

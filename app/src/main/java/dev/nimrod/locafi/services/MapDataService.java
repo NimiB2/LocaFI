@@ -25,7 +25,7 @@ import dev.nimrod.locafi.models.WifiPosition;
 
 public class MapDataService extends Service {
     private static final String TAG = "MapDataService";
-
+    private Location userLocation;
     private final IBinder binder = new LocalBinder();
     private WifiManager wifiManager;
     private boolean isPreciseLocation = false;
@@ -35,6 +35,9 @@ public class MapDataService extends Service {
     private Handler scanHandler = new Handler(Looper.getMainLooper());
     private static final long SCAN_INTERVAL = 10000; // 10 seconds
     private BroadcastReceiver wifiScanReceiver;
+
+    private Location baseLocation;
+
 
     public class LocalBinder extends Binder {
         public MapDataService getService() {
@@ -83,7 +86,7 @@ public class MapDataService extends Service {
         }, 0); // Start immediately
     }
 
-    private void performWifiScan() {
+    public void performWifiScan() {
         if (wifiManager != null && wifiManager.isWifiEnabled()) {
             boolean success = wifiManager.startScan();
             if (!success) {
@@ -98,12 +101,19 @@ public class MapDataService extends Service {
                 List<ScanResult> results = wifiManager.getScanResults();
                 List<WifiPoint> wifiPoints = convertToWifiPoints(results);
                 wifiPointsData.postValue(wifiPoints);
+                Log.d(TAG, "WiFi Scan Results: " + results.size() + " networks found");
+                for (ScanResult result : results) {
+                    Log.d(TAG, "Network: " + result.SSID +
+                            " Signal: " + result.level +
+                            " BSSID: " + result.BSSID);
+                }
             } catch (SecurityException e) {
                 Log.e(TAG, "Security Exception when getting scan results", e);
                 // Handle the permission denial gracefully
                 wifiPointsData.postValue(new ArrayList<>()); // Empty list
             }
         }
+
     }
     private boolean checkWifiPermissions() {
         Context context = getApplicationContext();
@@ -120,45 +130,42 @@ public class MapDataService extends Service {
         return hasWifiState;
     }
 
+    public void updateBaseLocation(Location location) {
+        this.baseLocation = location;
+        userLocationData.postValue(location);
+        Log.d(TAG, "Base Location Updated: " +
+                location.getLatitude() + ", " + location.getLongitude());
+    }
+
     private List<WifiPoint> convertToWifiPoints(List<ScanResult> scanResults) {
         List<WifiPoint> wifiPoints = new ArrayList<>();
+
+        if (baseLocation == null) {
+            return wifiPoints;  // Return empty list if no base location
+        }
+
         for (ScanResult result : scanResults) {
             if (result.SSID != null && !result.SSID.isEmpty()) {
-                double distance = calculateDistance(result.level);
-                WifiPosition position = calculateWifiPosition(result);
-
                 WifiPoint wifiPoint = new WifiPoint(
                         result.SSID,
                         result.BSSID,
-                        result.level,
-                        distance,
-                        position
+                        result.level
                 );
+                wifiPoint.calculateDistance();
+
+                // Calculate relative position based on signal strength
+                double bearing = (result.level + 100) * 3.6; // Convert signal to angle (0-360)
+                WifiPosition position = new WifiPosition(baseLocation.getLatitude(),
+                        baseLocation.getLongitude())
+                        .calculateDestination(wifiPoint.getDistance(), bearing);
+
+                wifiPoint.setPosition(position);
                 wifiPoints.add(wifiPoint);
             }
         }
         return wifiPoints;
     }
 
-    private double calculateDistance(int rssi) {
-        double referenceDistance = 1.0;
-        double referenceRSSI = -40.0;
-        double pathLossExponent = 2.7;
-        return referenceDistance * Math.pow(10.0,
-                (referenceRSSI - rssi) / (10.0 * pathLossExponent));
-    }
-
-    private WifiPosition calculateWifiPosition(ScanResult result) {
-        // For initial position, use a basic calculation
-        // This can be enhanced with actual user location later
-        double baseLatitude = 0.0; // Will be updated with actual location
-        double baseLongitude = 0.0;
-        double distance = calculateDistance(result.level);
-        double bearing = (result.level + 100) * 3.6; // Convert signal strength to angle
-
-        return new WifiPosition(baseLatitude, baseLongitude)
-                .calculateDestination(distance, bearing);
-    }
 
     @Override
     public IBinder onBind(Intent intent) {

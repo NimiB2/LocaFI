@@ -31,6 +31,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.List;
 
 import dev.nimrod.locafi.R;
+import dev.nimrod.locafi.models.LocationCalculator;
 import dev.nimrod.locafi.models.WifiPoint;
 import dev.nimrod.locafi.models.WifiTriangulation;
 import dev.nimrod.locafi.ui.maps.MapManager;
@@ -204,13 +205,16 @@ public class MapFragment extends Fragment {
             return;
         }
 
-        if (mapManager != null) {
+        if (mapManager != null && !wifiPoints.isEmpty()) {
             mapManager.updateWifiPoints(wifiPoints);
-            WifiTriangulation triangulation = new WifiTriangulation(wifiPoints);
-            LatLng wifiLocation = triangulation.getMostLikelyLocation();
 
-            if (wifiLocation != null) {
-                mapManager.updateWifiBasedLocation(wifiLocation);
+            // Add logging to verify location updates
+            List<LocationCalculator.WeightedLocation> locations =
+                    LocationCalculator.calculatePossibleLocations(wifiPoints);
+            if (!locations.isEmpty()) {
+                LocationCalculator.WeightedLocation location = locations.get(0);
+                Log.d("MapFragment", "Calculated WiFi Location: " +
+                        location.location.latitude + ", " + location.location.longitude);
             }
         }
     }

@@ -9,6 +9,9 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -50,6 +53,10 @@ public class MapManager {
     private Marker wifiMarker;
     private static final int WIFI_DOT_SIZE = 12; // Small dot for WiFi
     private static final int LOCATION_MARKER_SIZE = 48;
+
+    private static final int ANIMATION_DURATION = 1000; // 1 second
+    private Circle accuracyCircle;
+    private Handler animationHandler = new Handler(Looper.getMainLooper());
 
     public MapManager(GoogleMap map, Context context) {
         this.map = map;
@@ -119,16 +126,17 @@ public class MapManager {
         clearMap();
         wifiPointMap.clear();
 
+        // Draw WiFi points and their circles
         for (WifiPoint point : wifiPoints) {
             if (!point.hasValidPosition()) continue;
 
-            // Create small dot for WiFi point
+            // Create marker for WiFi point
             MarkerOptions markerOptions = new MarkerOptions()
                     .position(point.getPosition().toLatLng())
                     .title(point.getSsid())
+                    .snippet(String.format("Signal: %d dBm", point.getRssi()))
                     .icon(createDotMarker(WIFI_DOT_SIZE, Color.BLUE))
-                    .anchor(0.5f, 0.5f)
-                    .zIndex(1.0f);
+                    .anchor(0.5f, 0.5f);
 
             Marker marker = map.addMarker(markerOptions);
             wifiMarkers.add(marker);
@@ -137,14 +145,95 @@ public class MapManager {
             CircleOptions circleOptions = new CircleOptions()
                     .center(point.getPosition().toLatLng())
                     .radius(point.getDistance())
-                    .strokeWidth(4) // thicker border
+                    .strokeWidth(2)
                     .strokeColor(Color.parseColor(point.getSignalColor()))
-                    .fillColor(Color.TRANSPARENT);
+                    .fillColor(Color.argb(
+                            (int)(point.getCircleOpacity() * 255),
+                            0, 0, 255));
 
             Circle circle = map.addCircle(circleOptions);
             wifiCircles.add(circle);
             wifiPointMap.put(marker.getId(), point);
         }
+
+        // Calculate and show estimated position
+        List<LocationCalculator.WeightedLocation> locations =
+                LocationCalculator.calculatePossibleLocations(wifiPoints);
+
+        if (!locations.isEmpty()) {
+            LocationCalculator.WeightedLocation bestLocation = locations.get(0);
+            updateEstimatedLocation(bestLocation.location, wifiPoints);
+        }
+    }
+
+    private void updateEstimatedLocation(LatLng location, List<WifiPoint> wifiPoints) {
+        final LatLng oldLocation = wifiMarker != null ? wifiMarker.getPosition() : null;
+        final double accuracyRadius = calculateAccuracyRadius(wifiPoints);
+
+        if (wifiMarker == null) {
+            // First time - create marker without animation
+            MarkerOptions markerOptions = new MarkerOptions()
+                    .position(location)
+                    .title("Estimated Position")
+                    .icon(createLocationMarker(LOCATION_MARKER_SIZE, Color.RED))
+                    .anchor(0.5f, 0.5f)
+                    .zIndex(2.0f);
+            wifiMarker = map.addMarker(markerOptions);
+
+            // Create accuracy circle
+            CircleOptions circleOptions = new CircleOptions()
+                    .center(location)
+                    .radius(accuracyRadius)
+                    .strokeWidth(2)
+                    .strokeColor(Color.RED)
+                    .fillColor(Color.argb(50, 255, 0, 0));
+            accuracyCircle = map.addCircle(circleOptions);
+        } else {
+            // Animate marker movement
+            animateMarkerMovement(oldLocation, location, accuracyRadius);
+        }
+    }
+
+    private void animateMarkerMovement(LatLng start, LatLng end, double finalRadius) {
+        if (start == null || end == null) return;
+
+        final long startTime = SystemClock.uptimeMillis();
+        final float startRadius = (float) accuracyCircle.getRadius();
+        final double latDiff = end.latitude - start.latitude;
+        final double lngDiff = end.longitude - start.longitude;
+        final double radiusDiff = finalRadius - startRadius;
+
+        animationHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                long elapsed = SystemClock.uptimeMillis() - startTime;
+                float t = Math.min((float) elapsed / ANIMATION_DURATION, 1f);
+
+                // Interpolate using acceleration/deceleration
+                float interpolatedFraction = interpolateEaseInOut(t);
+
+                // Update marker position
+                double lat = start.latitude + (latDiff * interpolatedFraction);
+                double lng = start.longitude + (lngDiff * interpolatedFraction);
+                LatLng newPosition = new LatLng(lat, lng);
+                wifiMarker.setPosition(newPosition);
+
+                // Update accuracy circle
+                accuracyCircle.setCenter(newPosition);
+                accuracyCircle.setRadius(startRadius + (radiusDiff * interpolatedFraction));
+
+                // Continue animation if not finished
+                if (t < 1f) {
+                    animationHandler.post(this);
+                }
+            }
+        });
+    }
+
+    private float interpolateEaseInOut(float t) {
+        return t < 0.5f ?
+                2 * t * t :
+                -1 + (4 - 2 * t) * t;
     }
 
 
@@ -191,43 +280,24 @@ public class MapManager {
         wifiMarker = map.addMarker(markerOptions);
     }
 
-
-    private void updateIntersectionArea(List<WifiPoint> wifiPoints) {
-        if (intersectionArea != null) {
-            intersectionArea.remove();
+    private double calculateAccuracyRadius(List<WifiPoint> wifiPoints) {
+        if (wifiPoints == null || wifiPoints.isEmpty()) {
+            return 50.0; // Default radius in meters if no points
         }
 
-        WifiTriangulation triangulation = new WifiTriangulation(wifiPoints);
-        List<LatLng> intersectionPoints = calculateIntersectionPolygon(triangulation);
+        // Get average signal strength
+        double avgSignalStrength = wifiPoints.stream()
+                .mapToInt(WifiPoint::getRssi)
+                .average()
+                .orElse(-85);  // Default to weak signal if empty
 
-        if (!intersectionPoints.isEmpty()) {
-            try {
-                PolygonOptions polygonOptions = new PolygonOptions()
-                        .addAll(intersectionPoints)
-                        .strokeWidth(2)
-                        .strokeColor(Color.BLUE)
-                        .fillColor(Color.argb(70, 0, 0, 255)); // More visible blue with transparency
+        // Convert to radius: stronger signals = smaller radius
+        // -50 dBm (very strong) = ~15m radius
+        // -85 dBm (weak) = ~50m radius
+        double radius = 15 + Math.abs(avgSignalStrength + 50) * 1.0;
 
-                intersectionArea = map.addPolygon(polygonOptions);
-            } catch (Exception e) {
-                Log.e("MapManager", "Error creating polygon: " + e.getMessage());
-            }
-        }
-    }
-
-    private List<LatLng> calculateIntersectionPolygon(WifiTriangulation triangulation) {
-        List<LocationCalculator.WeightedLocation> weightedLocations =
-                triangulation.getPossibleLocations();
-
-        List<LatLng> polygonPoints = new ArrayList<>();
-
-        for (LocationCalculator.WeightedLocation loc : weightedLocations) {
-            if (loc.weight > 0.1) {
-                polygonPoints.add(loc.location);
-            }
-        }
-
-        return polygonPoints;
+        // Bound the radius between 15 and 50 meters
+        return Math.min(Math.max(radius, 15), 50);
     }
 
     private void zoomToFitAll(List<WifiPoint> wifiPoints) {
@@ -273,12 +343,15 @@ public class MapManager {
         }
         wifiMarkers.clear();
 
-        if (intersectionArea != null) {
-            intersectionArea.remove();
-            intersectionArea = null;
+        if (wifiMarker != null) {
+            wifiMarker.remove();
+            wifiMarker = null;
+        }
+        if (accuracyCircle != null) {
+            accuracyCircle.remove();
+            accuracyCircle = null;
         }
     }
-
     public WifiPoint getWifiPoint(Marker marker) {
         return wifiPointMap.get(marker.getId());
     }
