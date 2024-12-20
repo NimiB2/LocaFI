@@ -4,8 +4,10 @@
     <string name="outdoor">Outdoor</string>
     <string name="scan_wi_fi">Scan Wi-Fi</string>
     <string name="manage_wi_fi">Manage Wi-Fi</string>
-    <string name="delete">Delete</string>
-    <string name="edit">Edit</string>
+    <string name="signal_strength">Signal Strength:</string>
+    <string name="distance">Distance:</string>
+    <string name="location">Location:</string>
+
     <string name="add_to_calculation">Add to Calculation</string>
     <string name="selected_wi_fi_details">Selected Wi-Fi Details</string>
     <string name="scan_again">Scan Again</string>
@@ -19,8 +21,9 @@
     <string name="manage_networks">Manage Networks</string>
     <string name="start_scanning_to_see_nearby_networks">Start scanning to see nearby networks</string>
     <string name="wifi_network_visualization">WiFi Network Visualization</string>
-    <string name="press_scan_to_discover_networks">Press scan to discover networks</string>
+    <string name="press_scan_to_discover_networks">Scanning is in progress, please wait patiently.</string>
     <string name="no_networks_found">No Networks Found</string>
     <string name="center_on_wifi_location">LocaFI Me</string>
+    <string name="your_exact_gps_location">Get My GPS Location</string>
 
 </resources>

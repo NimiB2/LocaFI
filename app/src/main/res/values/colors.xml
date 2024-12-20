@@ -12,4 +12,10 @@
     <color name="wifi_gradient_center">#FFA500</color> <!-- Orange -->
     <color name="wifi_gradient_end">#FF4500</color>    <!-- Red-Orange -->
 
+    <color name="wifi_signal_strong">#4CAF50</color>  <!-- Strong - Green -->
+    <color name="wifi_signal_good">#8BC34A</color>   <!-- Good - Light Green -->
+    <color name="wifi_signal_fair">#FFC107</color>   <!-- Fair - Yellow -->
+    <color name="wifi_signal_poor">#FF9800</color>   <!-- Poor - Orange -->
+    <color name="wifi_signal_very_poor">#F44336</color> <!-- Very Poor - Red -->
+
 </resources>

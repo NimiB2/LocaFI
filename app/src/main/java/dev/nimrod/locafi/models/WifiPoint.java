@@ -27,10 +27,12 @@ public class WifiPoint {
     }
 
 
+
     public String getSignalColor() {
         switch (signalLevel) {
             case 4:
                 return "#4CAF50"; // Strong - Green
+
             case 3:
                 return "#8BC34A"; // Good - Light Green
             case 2:
@@ -40,6 +42,8 @@ public class WifiPoint {
             default:
                 return "#F44336"; // Very Poor - Red
         }
+
+
     }
 
 
@@ -75,6 +79,10 @@ public class WifiPoint {
 
     public boolean isValidPosition() {
         return position != null && position.isValid();
+    }
+
+    public int getSignalStrengthPercentage() {
+        return (signalLevel * 100) / MAX_SIGNAL_LEVEL;
     }
 
 

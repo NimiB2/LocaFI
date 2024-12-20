@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton manageButton;
     private FrameLayout visualizationContainer;
     private WifiListAdapter wifiListAdapter;
+    private MaterialButton main_BTN_location;
 
     // Utilities
 
@@ -134,16 +135,17 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize other views
         wifiListRecyclerView = findViewById(R.id.main_RCV_wifiList);
-        scanButton = findViewById(R.id.main_BTN_scan);
-        manageButton = findViewById(R.id.main_BTN_manage);
+//        scanButton = findViewById(R.id.main_BTN_scan);
+//        manageButton = findViewById(R.id.main_BTN_manage);
+        main_BTN_location= findViewById(R.id.main_BTN_location);
         visualizationContainer = findViewById(R.id.main_VIS_location);
 
         // Initialize empty states visibility
-        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.VISIBLE);
+//        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.VISIBLE);
         visualizationContainer.setVisibility(View.GONE);
         findViewById(R.id.main_LLC_empty_list).setVisibility(View.VISIBLE);
         wifiListRecyclerView.setVisibility(View.GONE);
-        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.GONE);
+//        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.GONE);
         findViewById(R.id.main_VIS_location).setVisibility(View.VISIBLE);
         // Initialize location services
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -243,21 +245,13 @@ public class MainActivity extends AppCompatActivity {
             }
 
             if (wifiPoints != null && !wifiPoints.isEmpty()) {
-                List<ScanResult> scanResults = new ArrayList<>();
-                for (WifiPoint wifiPoint : wifiPoints) {
-                    @SuppressLint("MissingPermission")
-                    ScanResult scanResult = null;
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        scanResult = new ScanResult();
-                    }
-                    scanResult.SSID = wifiPoint.getSsid();
-                    scanResult.BSSID = wifiPoint.getBssid();
-                    scanResult.level = wifiPoint.getRssi();
-                    scanResults.add(scanResult);
-                }
-                wifiListAdapter.updateData(scanResults);
+                // Directly update adapter with WifiPoint list
+                wifiListAdapter.updateData(wifiPoints);
                 updateWifiListVisibility(true);
+            } else {
+                updateWifiListVisibility(false);
             }
+
             findViewById(R.id.main_PGI_loading).setVisibility(View.GONE);
         });
 
@@ -277,34 +271,38 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void setupListeners() {
-        // Add scan button listener
-        scanButton.setOnClickListener(v -> {
-            if (mapService != null) {
-                // Show loading indicator or progress
-                scanButton.setEnabled(false);
+        main_BTN_location.setOnClickListener(v -> {
 
-                // Trigger location update first
-                if (checkLocationPermission()) {
-                    requestNewLocation();
-                }
 
-                // Start WiFi scan - the service will handle the scanning process
-                mapService.performWifiScan();
-
-                // Re-enable button after a delay (e.g., 2 seconds)
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    scanButton.setEnabled(true);
-                }, 2000);
-            } else {
-                Toast.makeText(this, "Service not ready", Toast.LENGTH_SHORT).show();
-            }
         });
-
-        // Existing manage button listener
-        manageButton.setOnClickListener(v -> {
-            Intent intent = new Intent(this, WifiManagement.class);
-            startActivity(intent);
-        });
+//        // Add scan button listener
+//        scanButton.setOnClickListener(v -> {
+//            if (mapService != null) {
+//                // Show loading indicator or progress
+//                scanButton.setEnabled(false);
+//
+//                // Trigger location update first
+//                if (checkLocationPermission()) {
+//                    requestNewLocation();
+//                }
+//
+//                // Start WiFi scan - the service will handle the scanning process
+//                mapService.performWifiScan();
+//
+//                // Re-enable button after a delay (e.g., 2 seconds)
+//                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+//                    scanButton.setEnabled(true);
+//                }, 2000);
+//            } else {
+//                Toast.makeText(this, "Service not ready", Toast.LENGTH_SHORT).show();
+//            }
+//        });
+//
+//        // Existing manage button listener
+//        manageButton.setOnClickListener(v -> {
+//            Intent intent = new Intent(this, WifiManagement.class);
+//            startActivity(intent);
+//        });
     }
     private void testPermissions() {
         Log.d(TAG, "Testing Permissions:");
@@ -316,12 +314,12 @@ public class MainActivity extends AppCompatActivity {
     private void setupRecyclerView() {
         wifiListRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         wifiListAdapter = new WifiListAdapter(new ArrayList<>());
-        wifiListAdapter.setOnWifiPointClickListener(scanResult -> {
+        wifiListAdapter.setOnWifiPointClickListener(wifiPoint -> {
             // Find corresponding WifiPoint
             List<WifiPoint> currentPoints = mapService.getWifiPointsData().getValue();
             if (currentPoints != null) {
                 for (WifiPoint point : currentPoints) {
-                    if (point.getBssid().equals(scanResult.BSSID)) {
+                    if (point.getBssid().equals(wifiPoint.getBssid())) {
                         mapFragment.focusOnWifiPoint(point);
                         break;
                     }
@@ -330,6 +328,7 @@ public class MainActivity extends AppCompatActivity {
         });
         wifiListRecyclerView.setAdapter(wifiListAdapter);
     }
+
 
     private boolean checkGooglePlayServices() {
         GoogleApiAvailability googleApiAvailability = GoogleApiAvailability.getInstance();

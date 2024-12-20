@@ -1,59 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
-    android:padding="@dimen/margin_m"
-    android:background="@color/background"
-    >
+    android:background="@color/background">
 
+    <!-- Horizontal layout for WiFi name and lat/lon -->
     <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="@dimen/padding">
+        android:padding="@dimen/margin_m"
+        android:layout_marginBottom="@dimen/margin_s">
 
-        <androidx.appcompat.widget.LinearLayoutCompat
+        <!-- WiFi Name -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/stored_wifi_MTV_name"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:text="WiFi Name:"
+            android:textAppearance="?attr/textAppearanceSubtitle1"
+            />
+
+        <!-- Vertical layout for Latitude and Longitude -->
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <!-- Latitude -->
             <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/stored_wifi_MTV_name"
+                android:id="@+id/stored_wifi_MTV_lat"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceSubtitle1" />
+                android:text="Latitude:"
+                android:textAppearance="?attr/textAppearanceBody2"
+                tools:text="Latitude: 0.0000" />
 
+            <!-- Longitude -->
             <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/stored_wifi_MTV_location"
+                android:id="@+id/stored_wifi_MTV_lon"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceBody2" />
-
+                android:text="Longitude:"
+                android:textAppearance="?attr/textAppearanceBody2"
+                tools:text="Longitude: 0.0000" />
         </androidx.appcompat.widget.LinearLayoutCompat>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/stored_wifi_BTN_edit"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@color/secondary_color"
-            android:layout_marginEnd="@dimen/margin_s"
-            android:text="@string/edit" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/stored_wifi_BTN_delete"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/delete"
-            android:textColor="?attr/colorError" />
-
     </androidx.appcompat.widget.LinearLayoutCompat>
 
+    <!-- Location and Signal Strength -->
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/stored_wifi_MTV_location"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Location:"
+        android:paddingHorizontal="@dimen/margin_m"
+        android:textAppearance="?attr/textAppearanceBody2"
+        tools:text="Location: Unknown" />
 
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/stored_wifi_MTV_signal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="@dimen/margin_m"
+        android:text="Signal Strength:"
+        android:textAppearance="?attr/textAppearanceBody1"
+        tools:text="Signal Strength: Strong" />
+
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/stored_wifi_progress_signal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="4"
+        android:progress="0"
+        android:layout_marginTop="@dimen/margin_s"
+        android:paddingHorizontal="@dimen/margin_m"
+        app:indicatorColor="@color/primary_color"
+        app:trackColor="@color/secondary_background" />
+
+    <!-- Divider line at the bottom -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:background="@color/text_color"
+        android:layout_marginTop="@dimen/margin_m" />
 </androidx.appcompat.widget.LinearLayoutCompat>
