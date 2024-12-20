@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.location.Location;
 import android.net.Uri;
 import android.net.wifi.ScanResult;
@@ -78,6 +79,9 @@ public class MainActivity extends AppCompatActivity {
     private FrameLayout visualizationContainer;
     private WifiListAdapter wifiListAdapter;
     private MaterialButton main_BTN_location;
+    private boolean isComparisonMode = false;
+
+
 
     // Utilities
 
@@ -128,6 +132,16 @@ public class MainActivity extends AppCompatActivity {
                 serviceConnection, Context.BIND_AUTO_CREATE);
     }
 
+    public void resetComparisonMode() {
+        isComparisonMode = false;
+        updateComparisonUI();
+    }
+    private void updateComparisonUI() {
+        // Update map fragment
+        if (mapFragment != null) {
+            mapFragment.toggleLocationComparison(isComparisonMode);
+        }
+    }
     private void initializeViews() {
         // Initialize toolbar
         MaterialToolbar toolbar = findViewById(R.id.main_MTB_toolbar);
@@ -272,38 +286,42 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupListeners() {
         main_BTN_location.setOnClickListener(v -> {
-
-
+            isComparisonMode = !isComparisonMode;
+            updateComparisonUI();
         });
-//        // Add scan button listener
-//        scanButton.setOnClickListener(v -> {
-//            if (mapService != null) {
-//                // Show loading indicator or progress
-//                scanButton.setEnabled(false);
-//
-//                // Trigger location update first
-//                if (checkLocationPermission()) {
-//                    requestNewLocation();
-//                }
-//
-//                // Start WiFi scan - the service will handle the scanning process
-//                mapService.performWifiScan();
-//
-//                // Re-enable button after a delay (e.g., 2 seconds)
-//                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-//                    scanButton.setEnabled(true);
-//                }, 2000);
-//            } else {
-//                Toast.makeText(this, "Service not ready", Toast.LENGTH_SHORT).show();
-//            }
-//        });
-//
-//        // Existing manage button listener
-//        manageButton.setOnClickListener(v -> {
-//            Intent intent = new Intent(this, WifiManagement.class);
-//            startActivity(intent);
-//        });
     }
+
+    private void updateComparisonMode() {
+        // Update button state
+        main_BTN_location.setBackgroundTintList(ColorStateList.valueOf(
+                getResources().getColor(
+                        isComparisonMode ? R.color.secondary_color : R.color.primary_color,
+                        null
+                )
+        ));
+
+        // Update button text
+        main_BTN_location.setText(isComparisonMode ?
+                R.string.hide_comparison : R.string.show_real_location);
+
+        // Update map fragment
+        if (mapFragment != null) {
+            mapFragment.toggleLocationComparison(isComparisonMode);
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean("comparison_mode", isComparisonMode);
+    }
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        isComparisonMode = savedInstanceState.getBoolean("comparison_mode", false);
+        updateComparisonMode();
+    }
+
     private void testPermissions() {
         Log.d(TAG, "Testing Permissions:");
         Log.d(TAG, "WiFi State Permission: " +

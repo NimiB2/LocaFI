@@ -6,9 +6,14 @@ import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 
 import android.Manifest;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Looper;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,6 +21,8 @@ import android.view.ViewGroup;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.maps.CameraUpdate;
@@ -26,6 +33,7 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.List;
@@ -34,6 +42,7 @@ import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.LocationCalculator;
 import dev.nimrod.locafi.models.WifiPoint;
 import dev.nimrod.locafi.models.WifiTriangulation;
+import dev.nimrod.locafi.ui.activities.MainActivity;
 import dev.nimrod.locafi.ui.maps.MapManager;
 
 public class MapFragment extends Fragment {
@@ -51,7 +60,11 @@ public class MapFragment extends Fragment {
     private LatLng currentWifiLocation;
     private boolean userInteracting = false;
 
+    private boolean isComparisonMode = false;
 
+    private static final int LOCATION_PERMISSION_REQUEST = 1001;
+
+    private Location currentGpsLocation;
 
     @Nullable
     @Override
@@ -110,6 +123,100 @@ public class MapFragment extends Fragment {
             googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
         }
     }
+
+    public void toggleLocationComparison(boolean enabled) {
+        isComparisonMode = enabled;
+        if (enabled && !checkLocationServices()) {
+            isComparisonMode = false;
+            return;
+        }
+
+        if (mapManager != null) {
+            mapManager.toggleLocationComparison(enabled);
+            if (enabled) {
+                startLocationUpdates();
+            } else {
+                stopLocationUpdates();
+            }
+        }
+    }
+    private boolean checkLocationServices() {
+        // Check if location is enabled in device settings
+        LocationManager locationManager = (LocationManager) requireContext()
+                .getSystemService(Context.LOCATION_SERVICE);
+
+        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            showEnableLocationDialog();
+            return false;
+        }
+
+        // Check permissions
+        if (ActivityCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestLocationPermission();
+            return false;
+        }
+
+        return true;
+    }
+
+    private void showEnableLocationDialog() {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Location Services Required")
+                .setMessage("GPS location is needed for comparison. Would you like to enable it?")
+                .setPositiveButton("Settings", (dialog, which) -> {
+                    Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                    startActivity(intent);
+                })
+                .setNegativeButton("Cancel", (dialog, which) -> {
+                    notifyComparisonCancelled();
+                })
+                .show();
+    }
+
+    private void requestLocationPermission() {
+        requestPermissions(
+                new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                LOCATION_PERMISSION_REQUEST
+        );
+    }
+
+    private void notifyComparisonCancelled() {
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).resetComparisonMode();
+        }
+    }
+    private void startLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        LocationRequest locationRequest = LocationRequest.create()
+                .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+                .setInterval(5000); // Update every 5 seconds
+
+        fusedLocationClient.requestLocationUpdates(locationRequest,
+                new LocationCallback() {
+                    @Override
+                    public void onLocationResult(@NonNull LocationResult locationResult) {
+                        Location location = locationResult.getLastLocation();
+                        if (location != null && isComparisonMode) {
+                            currentGpsLocation = location;
+                            mapManager.updateComparisonVisualization(location);
+                        }
+                    }
+                },
+                Looper.getMainLooper());
+    }
+
+    private void stopLocationUpdates() {
+        if (fusedLocationClient != null) {
+            fusedLocationClient.removeLocationUpdates(new LocationCallback() {});
+        }
+    }
+
+
     public void updateWifiPointsWithoutCamera(List<WifiPoint> wifiPoints) {
         if (googleMap == null) {
             Log.d(TAG, "Map not ready, queuing update");
@@ -165,7 +272,10 @@ public class MapFragment extends Fragment {
                 userInteracting = true;
             }
         });
-
+        if (ActivityCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            googleMap.setMyLocationEnabled(isComparisonMode);
+        }
 
     }
 
@@ -307,6 +417,8 @@ public class MapFragment extends Fragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        stopLocationUpdates();
+
         if (fusedLocationClient != null) {
             fusedLocationClient.removeLocationUpdates(new LocationCallback(){});
         }

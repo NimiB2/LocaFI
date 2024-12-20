@@ -1,6 +1,7 @@
 package dev.nimrod.locafi.ui.maps;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -27,19 +28,26 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
+import com.google.android.gms.maps.model.Dot;
+import com.google.android.gms.maps.model.Gap;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.LocationCalculator;
+import dev.nimrod.locafi.models.LocationComparisonState;
 import dev.nimrod.locafi.models.WifiPoint;
 import dev.nimrod.locafi.models.WifiTriangulation;
 
@@ -47,6 +55,16 @@ public class MapManager {
     private GoogleMap map;
     private List<Circle> wifiCircles;
     private List<Marker> wifiMarkers;
+
+    private Marker gpsMarker;
+    private Polyline comparisonLine;
+
+    private Marker distanceMarker;
+    private static final float MIN_ACCURACY_THRESHOLD = 20.0f; // meters
+
+    private LocationComparisonState comparisonState;
+    private static final int GPS_MARKER_SIZE = 48;
+
     //private Marker userMarker;
     private Polygon intersectionArea;
     private Map<String, WifiPoint> wifiPointMap;
@@ -65,6 +83,7 @@ public class MapManager {
         this.wifiCircles = new ArrayList<>();
         this.wifiMarkers = new ArrayList<>();
         this.wifiPointMap = new HashMap<>();
+        this.comparisonState = new LocationComparisonState();
         setupMap();
     }
 
@@ -377,7 +396,139 @@ public class MapManager {
             accuracyCircle.remove();
             accuracyCircle = null;
         }
+        clearComparisonVisualization();
     }
+
+    public void toggleLocationComparison(boolean enabled) {
+        comparisonState.setEnabled(enabled);
+        if (!enabled) {
+            clearComparisonVisualization();
+        }
+    }
+
+    public void updateComparisonVisualization(Location gpsLocation) {
+        if (!comparisonState.isEnabled() || gpsLocation == null) return;
+
+        if (gpsLocation.getAccuracy() > MIN_ACCURACY_THRESHOLD) {
+            showAccuracyWarning();
+            return;
+        }
+
+        LatLng gpsLatLng = new LatLng(gpsLocation.getLatitude(), gpsLocation.getLongitude());
+        LatLng wifiLatLng = wifiMarker != null ? wifiMarker.getPosition() : null;
+
+        if (wifiLatLng != null) {
+            comparisonState.updateLocations(gpsLatLng, wifiLatLng);
+            updateGpsMarker(gpsLatLng);
+            updateComparisonLine(gpsLatLng, wifiLatLng);
+            updateDistanceInfo();
+        }
+    }
+
+    private void showAccuracyWarning() {
+        if (context instanceof Activity) {
+            ((Activity) context).runOnUiThread(() -> {
+                Snackbar.make(
+                        ((Activity) context).findViewById(android.R.id.content),
+                        "Waiting for better GPS accuracy...",
+                        Snackbar.LENGTH_SHORT
+                ).show();
+            });
+        }
+    }
+    private void updateGpsMarker(LatLng position) {
+        if (gpsMarker == null) {
+            MarkerOptions options = new MarkerOptions()
+                    .position(position)
+                    .icon(createLocationMarker(GPS_MARKER_SIZE, Color.RED))
+                    .title("GPS Location")
+                    .anchor(0.5f, 0.5f);
+            gpsMarker = map.addMarker(options);
+        } else {
+            gpsMarker.setPosition(position);
+        }
+    }
+
+    private void updateComparisonLine(LatLng gpsPos, LatLng wifiPos) {
+        List<LatLng> points = Arrays.asList(gpsPos, wifiPos);
+
+        if (comparisonLine == null) {
+            PolylineOptions options = new PolylineOptions()
+                    .addAll(points)
+                    .color(Color.BLUE)
+                    .width(5)
+                    .pattern(Arrays.asList(
+                            new Dot(), new Gap(20)
+                    ));
+            comparisonLine = map.addPolyline(options);
+        } else {
+            comparisonLine.setPoints(points);
+        }
+    }
+
+    private void updateDistanceInfo() {
+        String distanceText = String.format("Distance: %.2f m", comparisonState.getDistance());
+        LatLng midPoint = getMidPoint(
+                comparisonState.getGpsLocation(),
+                comparisonState.getWifiLocation()
+        );
+
+        if (distanceMarker == null) {
+            MarkerOptions options = new MarkerOptions()
+                    .position(midPoint)
+                    .icon(BitmapDescriptorFactory.fromBitmap(createTextBitmap(distanceText)))
+                    .anchor(0.5f, 0.5f)
+                    .zIndex(1.0f); // Make sure it stays on top
+            distanceMarker = map.addMarker(options);
+        } else {
+            distanceMarker.setPosition(midPoint);
+            distanceMarker.setIcon(BitmapDescriptorFactory.fromBitmap(
+                    createTextBitmap(distanceText)));
+        }
+    }
+    private void clearComparisonVisualization() {
+        if (gpsMarker != null) {
+            gpsMarker.remove();
+            gpsMarker = null;
+        }
+        if (comparisonLine != null) {
+            comparisonLine.remove();
+            comparisonLine = null;
+        }
+        if (distanceMarker != null) {
+            distanceMarker.remove();
+            distanceMarker = null;
+        }
+    }
+
+    private LatLng getMidPoint(LatLng p1, LatLng p2) {
+        return new LatLng(
+                (p1.latitude + p2.latitude) / 2,
+                (p1.longitude + p2.longitude) / 2
+        );
+    }
+
+    private Bitmap createTextBitmap(String text) {
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTextSize(35);
+        paint.setColor(Color.BLACK);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setTextAlign(Paint.Align.CENTER);
+
+        float baseline = -paint.ascent();
+        int width = (int) (paint.measureText(text) + 0.5f);
+        int height = (int) (baseline + paint.descent() + 0.5f);
+
+        Bitmap image = Bitmap.createBitmap(width + 20, height + 10, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(image);
+        canvas.drawColor(Color.WHITE);
+        canvas.drawText(text, width/2 + 10, baseline + 5, paint);
+
+        return image;
+    }
+
+
+
     public WifiPoint getWifiPoint(Marker marker) {
         return wifiPointMap.get(marker.getId());
     }

@@ -26,4 +26,9 @@
     <string name="center_on_wifi_location">LocaFI Me</string>
     <string name="your_exact_gps_location">Get My GPS Location</string>
 
+    <string name="show_real_location">Show Real Location</string>
+    <string name="hide_comparison">Hide Comparison</string>
+    <string name="accuracy_warning">Waiting for better GPS accuracy</string>
+    <string name="enable_location_services">Enable Location Services</string>
+
 </resources>
