@@ -25,7 +25,7 @@ import dev.nimrod.locafi.models.WifiPosition;
 
 public class MapDataService extends Service {
     private static final String TAG = "MapDataService";
-    private Location userLocation;
+    private Location baseLocation;
     private final IBinder binder = new LocalBinder();
     private WifiManager wifiManager;
     private boolean isPreciseLocation = false;
@@ -36,7 +36,8 @@ public class MapDataService extends Service {
     private static final long SCAN_INTERVAL = 10000; // 10 seconds
     private BroadcastReceiver wifiScanReceiver;
 
-    private Location baseLocation;
+    private boolean isInitialized = false;
+    private boolean isInitializing = false;
 
 
     public class LocalBinder extends Binder {
@@ -49,7 +50,15 @@ public class MapDataService extends Service {
     public void onCreate() {
         super.onCreate();
         initializeService();
-        startDataCollection();
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (!isInitializing) {
+            isInitializing = true;
+            startDataCollection();
+        }
+        return START_STICKY;
     }
 
     private void initializeService() {
@@ -72,6 +81,7 @@ public class MapDataService extends Service {
     }
 
     private void startDataCollection() {
+        Log.d(TAG, "Starting data collection");
         startPeriodicWifiScans();
         isMapReady.setValue(true);
     }
@@ -99,22 +109,21 @@ public class MapDataService extends Service {
         if (wifiManager != null && checkWifiPermissions()) {
             try {
                 List<ScanResult> results = wifiManager.getScanResults();
-                List<WifiPoint> wifiPoints = convertToWifiPoints(results);
-                wifiPointsData.postValue(wifiPoints);
                 Log.d(TAG, "WiFi Scan Results: " + results.size() + " networks found");
                 for (ScanResult result : results) {
                     Log.d(TAG, "Network: " + result.SSID +
                             " Signal: " + result.level +
                             " BSSID: " + result.BSSID);
                 }
+                List<WifiPoint> wifiPoints = convertToWifiPoints(results);
+                wifiPointsData.postValue(wifiPoints);
             } catch (SecurityException e) {
                 Log.e(TAG, "Security Exception when getting scan results", e);
-                // Handle the permission denial gracefully
-                wifiPointsData.postValue(new ArrayList<>()); // Empty list
+                wifiPointsData.postValue(new ArrayList<>());
             }
         }
-
     }
+
     private boolean checkWifiPermissions() {
         Context context = getApplicationContext();
         boolean hasWifiState = context.checkSelfPermission(Manifest.permission.ACCESS_WIFI_STATE)
@@ -122,18 +131,10 @@ public class MapDataService extends Service {
         boolean hasWifiChange = context.checkSelfPermission(Manifest.permission.CHANGE_WIFI_STATE)
                 == PackageManager.PERMISSION_GRANTED;
 
-        // For Android 10 (API 29) and above
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             return hasWifiState && hasWifiChange;
         }
-        // For older versions
         return hasWifiState;
-    }
-
-    public void updateBaseLocation(Location location) {
-        Log.d(TAG, "Updating base location: " + location.getLatitude() + ", " + location.getLongitude());
-        this.baseLocation = location;
-        userLocationData.postValue(location);
     }
 
     private List<WifiPoint> convertToWifiPoints(List<ScanResult> scanResults) {
@@ -150,7 +151,6 @@ public class MapDataService extends Service {
                         result.BSSID,
                         result.level
                 );
-                wifiPoint.calculateDistance();
 
                 // Calculate relative position based on signal strength
                 double bearing = (result.level + 100) * 3.6; // Convert signal to angle (0-360)
@@ -165,6 +165,20 @@ public class MapDataService extends Service {
         return wifiPoints;
     }
 
+    public boolean hasBaseLocation() {
+        return baseLocation != null;
+    }
+
+    public void updateBaseLocation(Location location) {
+        Log.d(TAG, "Updating base location: " + location.getLatitude() + ", " + location.getLongitude());
+        this.baseLocation = location;
+        userLocationData.postValue(location);
+
+        // Trigger immediate WiFi scan when location updates
+        if (isInitialized) {
+            performWifiScan();
+        }
+    }
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -184,19 +198,19 @@ public class MapDataService extends Service {
     }
 
     public void startWithPreciseLocation() {
-        // Initialize with precise location capabilities
-        startDataCollection(true);
+        this.isPreciseLocation = true;
+        if (!isInitialized) {
+            startDataCollection();
+            isInitialized = true;
+        }
     }
 
     public void startWithApproximateLocation() {
-        // Initialize with approximate location
-        startDataCollection(false);
-    }
-
-    private void startDataCollection(boolean isPrecise) {
-        this.isPreciseLocation = isPrecise;
-        startPeriodicWifiScans();
-        isMapReady.setValue(true);
+        this.isPreciseLocation = false;
+        if (!isInitialized) {
+            startDataCollection();
+            isInitialized = true;
+        }
     }
 
     @Override
@@ -206,5 +220,6 @@ public class MapDataService extends Service {
             unregisterReceiver(wifiScanReceiver);
         }
         scanHandler.removeCallbacksAndMessages(null);
+        isInitialized = false;
     }
 }

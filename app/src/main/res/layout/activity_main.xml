@@ -65,6 +65,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/main_PGI_loading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            app:indicatorSize="48dp"
+            android:visibility="visible"/>
+
         <androidx.appcompat.widget.LinearLayoutCompat
             android:id="@+id/main_LLC_empty_visualization"
             android:layout_width="match_parent"

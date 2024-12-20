@@ -24,6 +24,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -97,6 +98,16 @@ public class MapManager {
         return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
 
+    private void zoomToLocation(LatLng location) {
+        if (map != null && location != null) {
+            CameraPosition cameraPosition = new CameraPosition.Builder()
+                    .target(location)
+                    .zoom(18f)
+                    .build();
+            map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+        }
+    }
+
     private BitmapDescriptor createLocationMarker(int size, int color) {
         Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
@@ -165,20 +176,20 @@ public class MapManager {
     }
 
     private void updateEstimatedLocation(LatLng location, List<WifiPoint> wifiPoints) {
-        final LatLng oldLocation = wifiMarker != null ? wifiMarker.getPosition() : null;
-
         if (wifiMarker == null) {
-            // Create marker without animation
+            // Create marker without animation or camera movement
             MarkerOptions markerOptions = new MarkerOptions()
                     .position(location)
                     .title("WIFI LOCATION")
-                    .icon(createLocationMarker(LOCATION_MARKER_SIZE, Color.parseColor("#FF8C00"))) // Orange color
+                    .icon(createLocationMarker(LOCATION_MARKER_SIZE, Color.parseColor("#FF8C00")))
                     .anchor(0.5f, 0.5f)
                     .zIndex(2.0f);
             wifiMarker = map.addMarker(markerOptions);
+            // Only zoom first time
+            zoomToLocation(location);
         } else {
-            // Animate marker movement
-            animateMarkerMovement(oldLocation, location);
+            // Just update marker position without any animation or camera movement
+            wifiMarker.setPosition(location);
         }
     }
 

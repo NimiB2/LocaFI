@@ -12,22 +12,28 @@ public class LocationCalculator {
     private static final double EARTH_RADIUS = 6371000; // Earth's radius in meters
 
     public static List<WeightedLocation> calculatePossibleLocations(List<WifiPoint> wifiPoints) {
-        if (wifiPoints == null || wifiPoints.isEmpty()) {
-            return new ArrayList<>();
-        }
-
+        LocationState locationState = LocationState.getInstance();
         List<WeightedLocation> result = new ArrayList<>();
 
-        if (wifiPoints.size() == 1) {
-            // For single WiFi, place point on circle edge
-            WifiPoint point = wifiPoints.get(0);
+        if (wifiPoints == null || wifiPoints.isEmpty()) {
+            return result;
+        }
 
+        // Single WiFi point case
+        if (wifiPoints.size() == 1) {
+            WifiPoint point = wifiPoints.get(0);
             if (!point.hasValidPosition()) {
                 return result;
             }
 
-            // Random angle between 0 and 360 degrees
-            double angle = Math.random() * 2 * Math.PI;
+            if (!locationState.hasSignificantChange(wifiPoints) && locationState.getLastLocation() != null) {
+                // Keep the previous location if no significant changes
+                result.add(new WeightedLocation(locationState.getLastLocation(), 1.0));
+                return result;
+            }
+
+            // Calculate new position on circle edge
+            double angle = Math.random() * 2 * Math.PI;  // Random angle for initial placement
             double distance = point.getDistance();
 
             // Calculate position on circle edge
@@ -36,43 +42,40 @@ public class LocationCalculator {
             double lng = point.getLongitude() +
                     (distance * Math.sin(angle)) / (111111.0 * Math.cos(Math.toRadians(point.getLatitude())));
 
-            result.add(new WeightedLocation(new LatLng(lat, lng), 1.0));
+            LatLng newLocation = new LatLng(lat, lng);
+            locationState.setLastLocation(newLocation);
+            result.add(new WeightedLocation(newLocation, 1.0));
             return result;
-        } else {
-            // Multiple WiFi points - use weighted centroid
-            double totalWeight = 0;
-            double weightedLat = 0;
-            double weightedLng = 0;
+        }
 
-            for (WifiPoint point : wifiPoints) {
-                if (!point.hasValidPosition()) {
-                    continue;
-                }
+        // Multiple WiFi points case - using weighted centroid (unchanged)
+        double totalWeight = 0;
+        double weightedLat = 0;
+        double weightedLng = 0;
 
-                // Convert RSSI to weight (stronger signal = higher weight)
-                // Add 100 to make all values positive, then exp to emphasize stronger signals
-                double weight = Math.exp((point.getRssi() + 100) / 10.0);
-
-                weightedLat += point.getLatitude() * weight;
-                weightedLng += point.getLongitude() * weight;
-                totalWeight += weight;
+        for (WifiPoint point : wifiPoints) {
+            if (!point.hasValidPosition()) {
+                continue;
             }
 
-            // If no valid points were found, return empty list
-            if (totalWeight == 0) {
-                return result;
-            }
+            double weight = Math.exp((point.getRssi() + 100) / 10.0);
+            weightedLat += point.getLatitude() * weight;
+            weightedLng += point.getLongitude() * weight;
+            totalWeight += weight;
+        }
 
-            // Calculate the weighted center
+        if (totalWeight > 0) {
             LatLng estimatedLocation = new LatLng(
                     weightedLat / totalWeight,
                     weightedLng / totalWeight
             );
-
             result.add(new WeightedLocation(estimatedLocation, 1.0));
-            return result;
+            locationState.setLastLocation(estimatedLocation);
         }
+
+        return result;
     }
+
     private static WifiPoint findStrongestWifiPoint(List<WifiPoint> wifiPoints) {
         return Collections.max(wifiPoints, (a, b) -> Integer.compare(a.getRssi(), b.getRssi()));
     }

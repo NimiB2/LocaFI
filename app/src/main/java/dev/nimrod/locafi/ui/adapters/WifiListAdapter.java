@@ -17,7 +17,7 @@ import dev.nimrod.locafi.R;
 
 public class WifiListAdapter extends RecyclerView.Adapter<WifiListAdapter.WifiViewHolder> {
     private List<ScanResult> wifiList;
-    private OnWifiPointClickListener listener;  // Add this
+    private OnWifiPointClickListener listener;
 
 
     public WifiListAdapter(List<ScanResult> wifiList) {

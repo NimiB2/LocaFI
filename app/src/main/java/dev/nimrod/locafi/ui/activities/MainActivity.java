@@ -12,6 +12,7 @@ import android.location.Location;
 import android.net.Uri;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -101,12 +102,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initializeServiceConnection() {
+        Intent serviceIntent = new Intent(this, MapDataService.class);
+        startService(serviceIntent);  // Start service before binding
+
         serviceConnection = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName name, IBinder service) {
                 MapDataService.LocalBinder binder = (MapDataService.LocalBinder) service;
                 mapService = binder.getService();
                 setupMapDataObservers();
+
+                if (!mapService.hasBaseLocation()) {
+                    initializeLocation();
+                }
             }
 
             @Override
@@ -115,9 +123,30 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        // Bind to the service
         bindService(new Intent(this, MapDataService.class),
                 serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void initializeViews() {
+        // Initialize toolbar
+        MaterialToolbar toolbar = findViewById(R.id.main_MTB_toolbar);
+        setSupportActionBar(toolbar);
+
+        // Initialize other views
+        wifiListRecyclerView = findViewById(R.id.main_RCV_wifiList);
+        scanButton = findViewById(R.id.main_BTN_scan);
+        manageButton = findViewById(R.id.main_BTN_manage);
+        visualizationContainer = findViewById(R.id.main_VIS_location);
+
+        // Initialize empty states visibility
+        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.VISIBLE);
+        visualizationContainer.setVisibility(View.GONE);
+        findViewById(R.id.main_LLC_empty_list).setVisibility(View.VISIBLE);
+        wifiListRecyclerView.setVisibility(View.GONE);
+        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.GONE);
+        findViewById(R.id.main_VIS_location).setVisibility(View.VISIBLE);
+        // Initialize location services
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
     }
 
     private void initializeServices() {
@@ -127,8 +156,41 @@ public class MainActivity extends AppCompatActivity {
 
     private void initializeLocation() {
         if (checkLocationPermission()) {
-            requestNewLocation();
+            Log.d(TAG, "Initializing location updates");
+            LocationRequest locationRequest = LocationRequest.create()
+                    .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+                    .setInterval(10000);  // Update every 10 seconds
+
+            try {
+                fusedLocationClient.requestLocationUpdates(locationRequest,
+                        new LocationCallback() {
+                            @Override
+                            public void onLocationResult(@NonNull LocationResult locationResult) {
+                                Location location = locationResult.getLastLocation();
+                                if (location != null && mapService != null) {
+                                    mapService.updateBaseLocation(location);
+                                }
+                            }
+                        },
+                        Looper.getMainLooper());
+            } catch (SecurityException e) {
+                Log.e(TAG, "Error requesting location updates: " + e.getMessage());
+                showLocationPermissionError();
+            }
         }
+    }
+    private void showLocationPermissionError() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Location Required")
+                .setMessage("Location permission is required for WiFi positioning.")
+                .setPositiveButton("Settings", (dialog, which) -> {
+                    Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    Uri uri = Uri.fromParts("package", getPackageName(), null);
+                    intent.setData(uri);
+                    startActivity(intent);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void requestNewLocation() {
@@ -154,23 +216,6 @@ public class MainActivity extends AppCompatActivity {
                 Looper.getMainLooper());
     }
 
-    private void initializeViews() {
-        // Initialize toolbar
-        MaterialToolbar toolbar = findViewById(R.id.main_MTB_toolbar);
-        setSupportActionBar(toolbar);
-
-        // Initialize other views
-        wifiListRecyclerView = findViewById(R.id.main_RCV_wifiList);
-        scanButton = findViewById(R.id.main_BTN_scan);
-        manageButton = findViewById(R.id.main_BTN_manage);
-        visualizationContainer = findViewById(R.id.main_VIS_location);
-
-        // Initialize empty states visibility
-        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.VISIBLE);
-        visualizationContainer.setVisibility(View.GONE);
-        findViewById(R.id.main_LLC_empty_list).setVisibility(View.VISIBLE);
-        wifiListRecyclerView.setVisibility(View.GONE);
-    }
 
     private void setupMapFragment() {
         mapFragment = new MapFragment();
@@ -182,7 +227,9 @@ public class MainActivity extends AppCompatActivity {
         mapFragment.setOnMapReadyCallback(() -> {
             Log.d(TAG, "Map is ready");
             // Initialize location immediately when map is ready
-            initializeLocation();
+            if (mapService != null && !mapService.hasBaseLocation()) {
+                initializeLocation();
+            }
         });
     }
 
@@ -190,26 +237,44 @@ public class MainActivity extends AppCompatActivity {
         mapService.getWifiPointsData().observe(this, wifiPoints -> {
             Log.d(TAG, "Received " + (wifiPoints != null ? wifiPoints.size() : 0) + " WiFi points");
 
+            // Update map
             if (mapFragment != null) {
                 mapFragment.updateWifiPoints(wifiPoints);
             }
-        });
 
-        mapService.getUserLocationData().observe(this, location -> {
-            Log.d(TAG, "Received user location update: " +
-                    (location != null ? location.getLatitude() + ", " + location.getLongitude() : "null"));
-            if (mapFragment != null) {
-                mapFragment.updateUserLocation(location);
+            if (wifiPoints != null && !wifiPoints.isEmpty()) {
+                List<ScanResult> scanResults = new ArrayList<>();
+                for (WifiPoint wifiPoint : wifiPoints) {
+                    @SuppressLint("MissingPermission")
+                    ScanResult scanResult = null;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        scanResult = new ScanResult();
+                    }
+                    scanResult.SSID = wifiPoint.getSsid();
+                    scanResult.BSSID = wifiPoint.getBssid();
+                    scanResult.level = wifiPoint.getRssi();
+                    scanResults.add(scanResult);
+                }
+                wifiListAdapter.updateData(scanResults);
+                updateWifiListVisibility(true);
             }
+            findViewById(R.id.main_PGI_loading).setVisibility(View.GONE);
         });
 
         mapService.getIsMapReady().observe(this, isReady -> {
-            findViewById(R.id.main_LLC_empty_visualization).setVisibility(
-                    isReady ? View.GONE : View.VISIBLE);
-            findViewById(R.id.main_VIS_location).setVisibility(
-                    isReady ? View.VISIBLE : View.GONE);
+            if (isReady) {
+                findViewById(R.id.main_PGI_loading).setVisibility(View.GONE);
+            }
         });
     }
+
+    private void updateWifiListVisibility(boolean hasWifiPoints) {
+        findViewById(R.id.main_LLC_empty_list).setVisibility(
+                hasWifiPoints ? View.GONE : View.VISIBLE);
+        wifiListRecyclerView.setVisibility(
+                hasWifiPoints ? View.VISIBLE : View.GONE);
+    }
+
 
     private void setupListeners() {
         // Add scan button listener
@@ -249,9 +314,21 @@ public class MainActivity extends AppCompatActivity {
                 checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION));
     }
     private void setupRecyclerView() {
-        wifiListAdapter = new WifiListAdapter(new ArrayList<>());
-        wifiListRecyclerView.setAdapter(wifiListAdapter);
         wifiListRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        wifiListAdapter = new WifiListAdapter(new ArrayList<>());
+        wifiListAdapter.setOnWifiPointClickListener(scanResult -> {
+            // Find corresponding WifiPoint
+            List<WifiPoint> currentPoints = mapService.getWifiPointsData().getValue();
+            if (currentPoints != null) {
+                for (WifiPoint point : currentPoints) {
+                    if (point.getBssid().equals(scanResult.BSSID)) {
+                        mapFragment.focusOnWifiPoint(point);
+                        break;
+                    }
+                }
+            }
+        });
+        wifiListRecyclerView.setAdapter(wifiListAdapter);
     }
 
     private boolean checkGooglePlayServices() {
@@ -400,6 +477,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (mapService != null && !mapService.hasBaseLocation()) {
+            initializeLocation();
+        }
     }
 
     @Override

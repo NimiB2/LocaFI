@@ -21,5 +21,6 @@
     <string name="wifi_network_visualization">WiFi Network Visualization</string>
     <string name="press_scan_to_discover_networks">Press scan to discover networks</string>
     <string name="no_networks_found">No Networks Found</string>
+    <string name="center_on_wifi_location">LocaFI Me</string>
 
 </resources>
