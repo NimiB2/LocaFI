@@ -63,7 +63,7 @@ public class MapFragment extends Fragment {
     private boolean isComparisonMode = false;
 
     private static final int LOCATION_PERMISSION_REQUEST = 1001;
-
+    private boolean userHasInteracted = false;
     private Location currentGpsLocation;
 
     @Nullable
@@ -97,13 +97,28 @@ public class MapFragment extends Fragment {
 
     private void initializeViews(View view) {
         locationFAB = view.findViewById(R.id.map_FAB_location);
-        locationFAB.setOnClickListener(v -> focusOnWifiLocation());
+        locationFAB.setOnClickListener(v -> {
+            userHasInteracted = false;  // Reset interaction flag
+            focusOnWifiLocation();
+        });
     }
     private void focusOnWifiLocation() {
         if (currentWifiLocation != null) {
             CameraPosition cameraPosition = new CameraPosition.Builder()
                     .target(currentWifiLocation)
-                    .zoom(40f)
+                    .zoom(19f)  // Increased zoom level
+                    .build();
+            googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+        }
+    }
+
+    public void focusOnWifiPoint(WifiPoint point) {
+        if (googleMap != null && point.hasValidPosition()) {
+            userHasInteracted = false;
+            LatLng position = new LatLng(point.getLatitude(), point.getLongitude());
+            CameraPosition cameraPosition = new CameraPosition.Builder()
+                    .target(position)
+                    .zoom(19f)  // Increased zoom level
                     .build();
             googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
         }
@@ -113,16 +128,6 @@ public class MapFragment extends Fragment {
         return isMapInitialized;
     }
 
-    public void focusOnWifiPoint(WifiPoint point) {
-        if (googleMap != null && point.hasValidPosition()) {
-            LatLng position = new LatLng(point.getLatitude(), point.getLongitude());
-            CameraPosition cameraPosition = new CameraPosition.Builder()
-                    .target(position)
-                    .zoom(40f)  // Very close zoom for specific point
-                    .build();
-            googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
-        }
-    }
 
     public void toggleLocationComparison(boolean enabled) {
         isComparisonMode = enabled;
@@ -135,11 +140,21 @@ public class MapFragment extends Fragment {
             mapManager.toggleLocationComparison(enabled);
             if (enabled) {
                 startLocationUpdates();
+                userHasInteracted = false;  // Reset interaction when entering comparison mode
             } else {
                 stopLocationUpdates();
             }
         }
     }
+
+    public void cleanup() {
+        userHasInteracted = false;
+        isInitialLocationSet = false;
+        if (mapManager != null) {
+            mapManager.cleanup();
+        }
+    }
+
     private boolean checkLocationServices() {
         // Check if location is enabled in device settings
         LocationManager locationManager = (LocationManager) requireContext()
@@ -216,20 +231,6 @@ public class MapFragment extends Fragment {
         }
     }
 
-
-    public void updateWifiPointsWithoutCamera(List<WifiPoint> wifiPoints) {
-        if (googleMap == null) {
-            Log.d(TAG, "Map not ready, queuing update");
-            setOnMapReadyCallback(() -> updateWifiPointsWithoutCamera(wifiPoints));
-            return;
-        }
-
-        Log.d(TAG, "Updating WiFi points: " + wifiPoints.size());
-
-        if (mapManager != null && !wifiPoints.isEmpty()) {
-            mapManager.updateWifiPoints(wifiPoints);
-        }
-    }
     public void updateWifiLocation(LatLng location) {
         if (mapManager != null) {
             mapManager.updateWifiBasedLocation(location);
@@ -249,34 +250,29 @@ public class MapFragment extends Fragment {
         if (googleMap == null) return;
 
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
-
         googleMap.getUiSettings().setZoomControlsEnabled(true);
         googleMap.getUiSettings().setZoomGesturesEnabled(true);
         googleMap.getUiSettings().setMapToolbarEnabled(false);
         googleMap.getUiSettings().setCompassEnabled(true);
-        //googleMap.setMyLocationEnabled(false);
         googleMap.getUiSettings().setMyLocationButtonEnabled(false);
-        // Safely disable the location layer with permission check
+
+        // Always keep Google's location marker disabled
         if (ActivityCompat.checkSelfPermission(requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-                ActivityCompat.checkSelfPermission(requireContext(),
-                        Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             googleMap.setMyLocationEnabled(false);
         }
 
         googleMap.setMinZoomPreference(2.0f);
-        googleMap.setMaxZoomPreference(100.0f);
+        googleMap.setMaxZoomPreference(21f); // Increased max zoom level
 
         googleMap.setOnCameraMoveStartedListener(reason -> {
             if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
-                userInteracting = true;
+                userHasInteracted = true;
             }
         });
-        if (ActivityCompat.checkSelfPermission(requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            googleMap.setMyLocationEnabled(isComparisonMode);
-        }
-
+    }
+    public void resetUserInteraction() {
+        userHasInteracted = false;
     }
 
     private void getCurrentLocation(boolean isInitial) {
@@ -383,37 +379,30 @@ public class MapFragment extends Fragment {
         }
 
         Log.d(TAG, "Updating WiFi points: " + wifiPoints.size());
+        Log.d(TAG, "User has interacted with map: " + userHasInteracted);
 
         if (mapManager != null && !wifiPoints.isEmpty()) {
             mapManager.updateWifiPoints(wifiPoints);
-
-            if (!isInitialLocationSet) {
-                WifiPoint firstPoint = wifiPoints.get(0);
-                if (firstPoint.hasValidPosition()) {
-                    moveCameraToPosition(new LatLng(firstPoint.getLatitude(), firstPoint.getLongitude()));
-                    isInitialLocationSet = true;
-                }
-            }
         }
     }
 
-    public void onCameraIdle() {
-        userInteracting = true;
+    public void setInitialPosition(LatLng position, float zoom) {
+        if (googleMap != null) {
+            CameraPosition cameraPosition = new CameraPosition.Builder()
+                    .target(position)
+                    .zoom(zoom)
+                    .build();
+            googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+        } else {
+            setOnMapReadyCallback(() -> {
+                CameraPosition cameraPosition = new CameraPosition.Builder()
+                        .target(position)
+                        .zoom(zoom)
+                        .build();
+                googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+            });
+        }
     }
-    private void moveCameraToPosition(LatLng position) {
-        if (googleMap == null || position == null) return;
-
-        CameraPosition cameraPosition = new CameraPosition.Builder()
-                .target(position)
-                .zoom(40f)
-                .build();
-
-        googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition),
-                1000, null);
-
-        Log.d(TAG, "Camera moved to: " + position.latitude + ", " + position.longitude);
-    }
-
     @Override
     public void onDestroy() {
         super.onDestroy();

@@ -40,6 +40,7 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -67,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_CODE = 100;
     private static final String TAG = "MainActivity";
     private FusedLocationProviderClient fusedLocationClient;
+    private boolean initialPositionSet = false;
 
     private MapFragment mapFragment;
     private MapDataService mapService;
@@ -80,7 +82,6 @@ public class MainActivity extends AppCompatActivity {
     private WifiListAdapter wifiListAdapter;
     private MaterialButton main_BTN_location;
     private boolean isComparisonMode = false;
-
 
 
     // Utilities
@@ -136,12 +137,14 @@ public class MainActivity extends AppCompatActivity {
         isComparisonMode = false;
         updateComparisonUI();
     }
+
     private void updateComparisonUI() {
         // Update map fragment
         if (mapFragment != null) {
             mapFragment.toggleLocationComparison(isComparisonMode);
         }
     }
+
     private void initializeViews() {
         // Initialize toolbar
         MaterialToolbar toolbar = findViewById(R.id.main_MTB_toolbar);
@@ -151,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
         wifiListRecyclerView = findViewById(R.id.main_RCV_wifiList);
 //        scanButton = findViewById(R.id.main_BTN_scan);
 //        manageButton = findViewById(R.id.main_BTN_manage);
-        main_BTN_location= findViewById(R.id.main_BTN_location);
+        main_BTN_location = findViewById(R.id.main_BTN_location);
         visualizationContainer = findViewById(R.id.main_VIS_location);
 
         // Initialize empty states visibility
@@ -195,6 +198,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
     private void showLocationPermissionError() {
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Location Required")
@@ -256,10 +260,19 @@ public class MainActivity extends AppCompatActivity {
             // Update map
             if (mapFragment != null) {
                 mapFragment.updateWifiPoints(wifiPoints);
+
+                // Set initial position only once using first WiFi point
+                if (wifiPoints != null && !wifiPoints.isEmpty() && !initialPositionSet) {
+                    WifiPoint firstPoint = wifiPoints.get(0);
+                    if (firstPoint.hasValidPosition()) {
+                        mapFragment.setInitialPosition(new LatLng(firstPoint.getLatitude(),
+                                firstPoint.getLongitude()), 19f);
+                        initialPositionSet = true;
+                    }
+                }
             }
 
             if (wifiPoints != null && !wifiPoints.isEmpty()) {
-                // Directly update adapter with WifiPoint list
                 wifiListAdapter.updateData(wifiPoints);
                 updateWifiListVisibility(true);
             } else {
@@ -287,7 +300,7 @@ public class MainActivity extends AppCompatActivity {
     private void setupListeners() {
         main_BTN_location.setOnClickListener(v -> {
             isComparisonMode = !isComparisonMode;
-            updateComparisonUI();
+            updateComparisonMode();
         });
     }
 
@@ -315,6 +328,7 @@ public class MainActivity extends AppCompatActivity {
         super.onSaveInstanceState(outState);
         outState.putBoolean("comparison_mode", isComparisonMode);
     }
+
     @Override
     protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
@@ -329,6 +343,7 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "Location Permission: " +
                 checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION));
     }
+
     private void setupRecyclerView() {
         wifiListRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         wifiListAdapter = new WifiListAdapter(new ArrayList<>());
@@ -507,6 +522,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (mapFragment != null) {
+            mapFragment.cleanup();
+        }
         if (serviceConnection != null) {
             unbindService(serviceConnection);
         }

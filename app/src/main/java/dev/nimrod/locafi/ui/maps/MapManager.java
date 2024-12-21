@@ -21,6 +21,8 @@ import android.widget.TextView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptor;
@@ -31,6 +33,7 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.Dot;
 import com.google.android.gms.maps.model.Gap;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polygon;
@@ -55,6 +58,7 @@ public class MapManager {
     private GoogleMap map;
     private List<Circle> wifiCircles;
     private List<Marker> wifiMarkers;
+    private boolean initialPositionSet = false;
 
     private Marker gpsMarker;
     private Polyline comparisonLine;
@@ -72,7 +76,7 @@ public class MapManager {
     private Marker wifiMarker;
     private static final int WIFI_DOT_SIZE = 12; // Small dot for WiFi
     private static final int LOCATION_MARKER_SIZE = 48;
-
+    private FusedLocationProviderClient fusedLocationClient;
     private static final int ANIMATION_DURATION = 1000; // 1 second
     private Circle accuracyCircle;
     private Handler animationHandler = new Handler(Looper.getMainLooper());
@@ -84,7 +88,17 @@ public class MapManager {
         this.wifiMarkers = new ArrayList<>();
         this.wifiPointMap = new HashMap<>();
         this.comparisonState = new LocationComparisonState();
+        this.fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
+        this.initialPositionSet = false;  // Ensure this is initialized
         setupMap();
+    }
+
+    public void cleanup() {
+        clearMap();
+        initialPositionSet = false;
+        if (comparisonState != null) {
+            comparisonState.setEnabled(false);
+        }
     }
 
     private void setupMap() {
@@ -121,7 +135,7 @@ public class MapManager {
         if (map != null && location != null) {
             CameraPosition cameraPosition = new CameraPosition.Builder()
                     .target(location)
-                    .zoom(18f)
+                    .zoom(19f)  // Increased zoom level
                     .build();
             map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
         }
@@ -196,7 +210,6 @@ public class MapManager {
 
     private void updateEstimatedLocation(LatLng location, List<WifiPoint> wifiPoints) {
         if (wifiMarker == null) {
-            // Create marker without animation or camera movement
             MarkerOptions markerOptions = new MarkerOptions()
                     .position(location)
                     .title("WIFI LOCATION")
@@ -204,10 +217,13 @@ public class MapManager {
                     .anchor(0.5f, 0.5f)
                     .zIndex(2.0f);
             wifiMarker = map.addMarker(markerOptions);
-            // Only zoom first time
-            zoomToLocation(location);
+
+            // Only set initial camera position if this is the first time
+            if (!initialPositionSet) {
+                zoomToLocation(location);
+                initialPositionSet = true;
+            }
         } else {
-            // Just update marker position without any animation or camera movement
             wifiMarker.setPosition(location);
         }
     }
@@ -403,9 +419,22 @@ public class MapManager {
         comparisonState.setEnabled(enabled);
         if (!enabled) {
             clearComparisonVisualization();
+        } else {
+            // Hide Google's location layer
+            if (ActivityCompat.checkSelfPermission(context,
+                    Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                map.setMyLocationEnabled(false);
+                fusedLocationClient.getLastLocation()
+                        .addOnSuccessListener(location -> {
+                            if (location != null) {
+                                LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+                                updateGpsMarker(latLng);
+                                map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18f));
+                            }
+                        });
+            }
         }
     }
-
     public void updateComparisonVisualization(Location gpsLocation) {
         if (!comparisonState.isEnabled() || gpsLocation == null) return;
 
@@ -422,9 +451,15 @@ public class MapManager {
             updateGpsMarker(gpsLatLng);
             updateComparisonLine(gpsLatLng, wifiLatLng);
             updateDistanceInfo();
+
+            // Move camera to show both markers
+            LatLngBounds.Builder builder = new LatLngBounds.Builder();
+            builder.include(gpsLatLng);
+            builder.include(wifiLatLng);
+            map.animateCamera(CameraUpdateFactory.newLatLngBounds(
+                    builder.build(), 200)); // Added padding for better view
         }
     }
-
     private void showAccuracyWarning() {
         if (context instanceof Activity) {
             ((Activity) context).runOnUiThread(() -> {
