@@ -305,7 +305,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateComparisonMode() {
-        // Update button state
+        // Update button background color
         main_BTN_location.setBackgroundTintList(ColorStateList.valueOf(
                 getResources().getColor(
                         isComparisonMode ? R.color.secondary_color : R.color.primary_color,
@@ -313,9 +313,13 @@ public class MainActivity extends AppCompatActivity {
                 )
         ));
 
-        // Update button text
+        // Update button text and text color
         main_BTN_location.setText(isComparisonMode ?
-                R.string.hide_comparison : R.string.show_real_location);
+                R.string.hide_gps_location : R.string.show_gps_location);
+        main_BTN_location.setTextColor(getResources().getColor(
+                isComparisonMode ? R.color.primary_color : R.color.secondary_color,
+                null
+        ));
 
         // Update map fragment
         if (mapFragment != null) {

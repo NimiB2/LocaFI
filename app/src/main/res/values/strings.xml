@@ -31,4 +31,7 @@
     <string name="accuracy_warning">Waiting for better GPS accuracy</string>
     <string name="enable_location_services">Enable Location Services</string>
 
+    <string name="show_gps_location">Show GPS Location</string>
+    <string name="hide_gps_location">Hide GPS Location</string>
+
 </resources>
