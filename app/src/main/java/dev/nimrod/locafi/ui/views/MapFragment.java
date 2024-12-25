@@ -107,7 +107,7 @@ public class MapFragment extends Fragment {
             userHasInteracted = false;  // Reset user interaction flag
             CameraPosition cameraPosition = new CameraPosition.Builder()
                     .target(currentWifiLocation)
-                    .zoom(19f)
+                    .zoom(21f)
                     .build();
             googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), new GoogleMap.CancelableCallback() {
                 @Override
@@ -130,7 +130,7 @@ public class MapFragment extends Fragment {
             LatLng position = new LatLng(point.getLatitude(), point.getLongitude());
             CameraPosition cameraPosition = new CameraPosition.Builder()
                     .target(position)
-                    .zoom(19f)  // Increased zoom level
+                    .zoom(21f)  // Increased zoom level
                     .build();
             googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
         }

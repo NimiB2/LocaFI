@@ -48,11 +48,10 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void initializeServices() {
-        // Check if location services enabled
+        // Only check if services are enabled
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         boolean isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
-        // Check if WiFi enabled
         WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         boolean isWifiEnabled = wifiManager.isWifiEnabled();
 
@@ -61,49 +60,10 @@ public class SplashActivity extends AppCompatActivity {
             return;
         }
 
-        // Start location check
-        if (checkLocationPermission()) {
-            getInitialLocation();
-        } else {
-            requestLocationPermissions();
-        }
+        // Start animation directly
+        startAnimation();
     }
 
-    private boolean checkLocationPermission() {
-        return ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void requestLocationPermissions() {
-        ActivityCompat.requestPermissions(this,
-                new String[]{
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                },
-                100);
-    }
-
-    private void getInitialLocation() {
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-
-        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                .addOnSuccessListener(location -> {
-                    if (location != null) {
-                        startServiceAndAnimation(location);
-                    } else {
-                        // If no location, still proceed but log it
-                        Log.w(TAG, "No initial location available");
-                        startServiceAndAnimation(null);
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error getting location: " + e.getMessage());
-                    startServiceAndAnimation(null);
-                });
-    }
 
     private void startServiceAndAnimation(Location location) {
         // Start the service with initial location
@@ -151,18 +111,6 @@ public class SplashActivity extends AppCompatActivity {
                 });
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 100) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getInitialLocation();
-            } else {
-                showServiceEnableDialog();
-            }
-        }
-    }
 
     private void startMainActivity() {
         Intent intent = new Intent(this, MainActivity.class);

@@ -10,6 +10,7 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.location.Location;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
@@ -25,6 +26,8 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -64,11 +67,14 @@ import dev.nimrod.locafi.ui.adapters.WifiListAdapter;
 import dev.nimrod.locafi.ui.views.LocationView;
 import dev.nimrod.locafi.ui.views.MapFragment;
 
+
 public class MainActivity extends AppCompatActivity {
-    private static final int PERMISSION_REQUEST_CODE = 100;
     private static final String TAG = "MainActivity";
+    private static final String STATE_PREF = "PermissionStatePref";
+    private static final String CURRENT_STATE_KEY = "CurrentPermissionState";
     private FusedLocationProviderClient fusedLocationClient;
     private boolean initialPositionSet = false;
+    private LocationCallback locationCallback;
 
     private MapFragment mapFragment;
     private MapDataService mapService;
@@ -82,10 +88,16 @@ public class MainActivity extends AppCompatActivity {
     private WifiListAdapter wifiListAdapter;
     private MaterialButton main_BTN_location;
     private boolean isComparisonMode = false;
+    private PermissionState currentState = PermissionState.INITIAL_REQUEST;
 
+    private enum PermissionState {
+        INITIAL_REQUEST,
+        DETAILED_REQUEST,
+        MANUAL_SETTINGS
+    }
 
-    // Utilities
-
+    private ActivityResultLauncher<String> requestPermissionLauncher;
+    private ActivityResultLauncher<Intent> settingsLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,19 +105,140 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
+        // Load saved state
+        currentState = PermissionState.valueOf(getSharedPreferences(STATE_PREF, Context.MODE_PRIVATE)
+                .getString(CURRENT_STATE_KEY, PermissionState.INITIAL_REQUEST.name()));
+
+        initializePermissionLaunchers();
+        requestLocationPermission();
+    }
+
+    private void saveCurrentState() {
+        getSharedPreferences(STATE_PREF, Context.MODE_PRIVATE)
+                .edit()
+                .putString(CURRENT_STATE_KEY, currentState.name())
+                .apply();
+    }
+
+
+    private void initializePermissionLaunchers() {
+        requestPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                this::handlePermissionResult  // Direct call to handlePermissionResult
+        );
+
+        settingsLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> checkPermissionAfterSettings()
+        );
+    }
+
+    private void requestLocationPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            initializeApp();
+            return;
+        }
+
+        switch (currentState) {
+            case INITIAL_REQUEST:
+                requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION);
+                break;
+            case DETAILED_REQUEST:
+                showDetailedPermissionDialog();
+                break;
+            case MANUAL_SETTINGS:
+                showSettingsDialog();
+                break;
+        }
+    }
+
+    private void showDetailedPermissionDialog() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Access Your Location")
+                .setMessage("We need your location to find and display nearby WiFi networks on the map. Without this permission, the app can't discover networks in your area.")
+                .setPositiveButton("Continue", (dialog, which) ->
+                        requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION))
+                .setNegativeButton("Cancel", (dialog, which) -> finishAffinity())
+                .setCancelable(false)
+                .show();
+    }
+
+    private void showSettingsDialog() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Location Permission Required")
+                .setMessage("Please enable location permission in Settings to use this feature.")
+                .setPositiveButton("Open Settings", (dialog, which) -> openSettings())
+                .setNegativeButton("Cancel", (dialog, which) -> finishAffinity())
+                .show();
+    }
+
+    private void openSettings() {
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        Uri uri = Uri.fromParts("package", getPackageName(), null);
+        intent.setData(uri);
+        settingsLauncher.launch(intent);
+    }
+
+    private void checkPermissionAfterSettings() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            initializeApp();
+        } else {
+            finishAffinity();
+        }
+    }
+
+    private void handlePermissionResult(boolean isGranted) {
+        if (isGranted) {
+            initializeApp();
+            return;
+        }
+
+        switch (currentState) {
+            case INITIAL_REQUEST:
+                currentState = PermissionState.DETAILED_REQUEST;
+                saveCurrentState();
+                showDetailedPermissionDialog();
+                break;
+            case DETAILED_REQUEST:
+                currentState = PermissionState.MANUAL_SETTINGS;
+                saveCurrentState();
+                showSettingsDialog();
+                break;
+            case MANUAL_SETTINGS:
+                finishAffinity();
+                break;
+        }
+    }
+
+    private void initializeApp() {
+        // Check for location services first
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            showLocationServicesDialog();
+            return;
+        }
+
         initializeServiceConnection();
         initializeViews();
         initializeServices();
         setupMapFragment();
         setupListeners();
         setupRecyclerView();
-        checkPermissions();
-
-        if (!checkGooglePlayServices()) {
-            Log.e("MainActivity", "Google Play Services not available");
-            return;
-        }
     }
+
+    private void showLocationServicesDialog() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Enable Location Services")
+                .setMessage("Location services are required for this app to work properly.")
+                .setPositiveButton("Settings", (dialog, which) -> {
+                    startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                })
+                .setNegativeButton("Cancel", (dialog, which) -> finishAffinity())
+                .show();
+    }
+
 
     private void initializeServiceConnection() {
         Intent serviceIntent = new Intent(this, MapDataService.class);
@@ -178,38 +311,42 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Initializing location updates");
             LocationRequest locationRequest = LocationRequest.create()
                     .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-                    .setInterval(10000);  // Update every 10 seconds
+                    .setInterval(10000);
+
+            locationCallback = new LocationCallback() {
+                @Override
+                public void onLocationResult(@NonNull LocationResult locationResult) {
+                    Location location = locationResult.getLastLocation();
+                    if (location != null && mapService != null) {
+                        if (location.getAccuracy() > 50) { // 50 meters threshold
+                            showInaccurateLocationDialog();
+                        }
+                        mapService.updateBaseLocation(location);
+                    }
+                }
+            };
 
             try {
                 fusedLocationClient.requestLocationUpdates(locationRequest,
-                        new LocationCallback() {
-                            @Override
-                            public void onLocationResult(@NonNull LocationResult locationResult) {
-                                Location location = locationResult.getLastLocation();
-                                if (location != null && mapService != null) {
-                                    mapService.updateBaseLocation(location);
-                                }
-                            }
-                        },
+                        locationCallback,
                         Looper.getMainLooper());
             } catch (SecurityException e) {
                 Log.e(TAG, "Error requesting location updates: " + e.getMessage());
-                showLocationPermissionError();
             }
         }
     }
 
-    private void showLocationPermissionError() {
+
+    private void showInaccurateLocationDialog() {
         new MaterialAlertDialogBuilder(this)
-                .setTitle("Location Required")
-                .setMessage("Location permission is required for WiFi positioning.")
-                .setPositiveButton("Settings", (dialog, which) -> {
-                    Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    Uri uri = Uri.fromParts("package", getPackageName(), null);
-                    intent.setData(uri);
-                    startActivity(intent);
-                })
-                .setNegativeButton("Cancel", null)
+                .setTitle("Improve Location Accuracy")
+                .setMessage("Your current location accuracy is low. For better results:\n" +
+                        "• Enable GPS/High accuracy mode\n" +
+                        "• Move to an open area\n" +
+                        "• Wait a few moments for better signal")
+                .setPositiveButton("Open Settings", (dialog, which) ->
+                        startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)))
+                .setNegativeButton("Continue Anyway", null)
                 .show();
     }
 
@@ -327,6 +464,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
@@ -340,13 +478,6 @@ public class MainActivity extends AppCompatActivity {
         updateComparisonMode();
     }
 
-    private void testPermissions() {
-        Log.d(TAG, "Testing Permissions:");
-        Log.d(TAG, "WiFi State Permission: " +
-                checkSelfPermission(Manifest.permission.ACCESS_WIFI_STATE));
-        Log.d(TAG, "Location Permission: " +
-                checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION));
-    }
 
     private void setupRecyclerView() {
         wifiListRecyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -380,97 +511,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean checkLocationPermission() {
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestLocationPermissions();
-            return false;
-        }
-        return true;
+        return ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
-    private void checkPermissions() {
-        String[] permissions = {
-                Manifest.permission.ACCESS_WIFI_STATE,
-                Manifest.permission.CHANGE_WIFI_STATE,
-                Manifest.permission.ACCESS_FINE_LOCATION
-        };
-
-        if (!hasPermissions(permissions)) {
-            ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
-        }
-        Log.d(TAG, "MainActivity initialized");
-    }
-
-    private boolean hasPermissions(String[] permissions) {
-        for (String permission : permissions) {
-            if (ContextCompat.checkSelfPermission(this, permission)
-                    != PackageManager.PERMISSION_GRANTED) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private void requestLocationPermissions() {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Location Permission Required")
-                .setMessage("LocaFI needs precise location access to accurately calculate WiFi positions and provide better triangulation results. This helps improve the accuracy of WiFi-based positioning.")
-                .setPositiveButton("Grant Permission", (dialog, which) -> {
-                    ActivityCompat.requestPermissions(this,
-                            new String[]{
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
-                            },
-                            PERMISSION_REQUEST_CODE);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private boolean shouldShowPermissionRationale() {
-        return ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_WIFI_STATE) ||
-                ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CHANGE_WIFI_STATE);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            boolean hasPreciseLocation = false;
-            boolean hasCoarseLocation = false;
-
-            for (int i = 0; i < permissions.length; i++) {
-                if (permissions[i].equals(Manifest.permission.ACCESS_FINE_LOCATION)
-                        && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
-                    hasPreciseLocation = true;
-                }
-                if (permissions[i].equals(Manifest.permission.ACCESS_COARSE_LOCATION)
-                        && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
-                    hasCoarseLocation = true;
-                }
-            }
-
-            if (hasPreciseLocation) {
-                // Best case - proceed with full functionality
-                mapService.startWithPreciseLocation();
-            } else if (hasCoarseLocation) {
-                // Limited functionality - notify user
-                Snackbar.make(findViewById(android.R.id.content),
-                        "Using approximate location. Accuracy may be reduced.",
-                        Snackbar.LENGTH_LONG).show();
-                mapService.startWithApproximateLocation();
-            } else {
-                // No location permission - show settings dialog
-                showLocationSettingsDialog();
-            }
-        }
-    }
 
     private Location getLastKnownLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
                 PackageManager.PERMISSION_GRANTED) {
-            requestLocationPermissions();
             return null;
         }
         // Using a CompletableFuture to handle the async nature of getLastLocation
@@ -493,23 +541,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private void showLocationSettingsDialog() {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Location Permission Required")
-                .setMessage("WiFi positioning requires location access. Without it, the app cannot function properly. Please grant location permission in Settings.")
-                .setPositiveButton("Settings", (dialog, which) -> {
-                    Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    Uri uri = Uri.fromParts("package", getPackageName(), null);
-                    intent.setData(uri);
-                    startActivity(intent);
-                })
-                .setNegativeButton("Cancel", (dialog, which) -> {
-                    Toast.makeText(this, "App functionality will be limited without location access",
-                            Toast.LENGTH_LONG).show();
-                })
-                .show();
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
@@ -526,6 +557,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (fusedLocationClient != null && locationCallback != null) {
+            fusedLocationClient.removeLocationUpdates(locationCallback);
+        }
         if (mapFragment != null) {
             mapFragment.cleanup();
         }
