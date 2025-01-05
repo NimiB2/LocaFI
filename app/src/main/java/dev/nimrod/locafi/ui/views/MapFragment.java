@@ -396,13 +396,18 @@ public class MapFragment extends Fragment {
         if (mapManager != null && !wifiPoints.isEmpty()) {
             mapManager.updateWifiPoints(wifiPoints);
 
-            // Update current WiFi location based on first point
-            if (wifiPoints.get(0).hasValidPosition()) {
-                currentWifiLocation = new LatLng(
-                        wifiPoints.get(0).getLatitude(),
-                        wifiPoints.get(0).getLongitude()
-                );
-                Log.d(TAG, "Updated currentWifiLocation to: " + currentWifiLocation.latitude + ", " + currentWifiLocation.longitude);
+            WifiPoint firstPoint = wifiPoints.get(0);
+            if (firstPoint.hasValidPosition()) {
+                LatLng wifiLocation = new LatLng(firstPoint.getLatitude(), firstPoint.getLongitude());
+                mapManager.updateWifiBasedLocation(wifiLocation);
+
+                // Update current WiFi location for centering
+                currentWifiLocation = wifiLocation;
+
+                // Only center map if user hasn't interacted
+                if (!userHasInteracted) {
+                    focusOnWifiLocation();
+                }
             }
         }
     }

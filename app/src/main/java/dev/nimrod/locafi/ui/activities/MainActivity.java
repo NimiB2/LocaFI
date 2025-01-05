@@ -1,29 +1,23 @@
 package dev.nimrod.locafi.ui.activities;
 
-import android.annotation.SuppressLint;
-import android.content.BroadcastReceiver;
+
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.location.Location;
 import android.location.LocationManager;
 import android.net.Uri;
-import android.net.wifi.ScanResult;
-import android.net.wifi.WifiManager;
-import android.os.Build;
+
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.FrameLayout;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
@@ -47,24 +41,18 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import android.Manifest;
 
-import dev.nimrod.locafi.BuildConfig;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WifiPoint;
-import dev.nimrod.locafi.models.WifiPosition;
 import dev.nimrod.locafi.services.MapDataService;
 import dev.nimrod.locafi.ui.adapters.WifiListAdapter;
-import dev.nimrod.locafi.ui.views.LocationView;
 import dev.nimrod.locafi.ui.views.MapFragment;
 
 
@@ -82,8 +70,7 @@ public class MainActivity extends AppCompatActivity {
 
     // UI Components
     private RecyclerView wifiListRecyclerView;
-    private MaterialButton scanButton;
-    private MaterialButton manageButton;
+
     private FrameLayout visualizationContainer;
     private WifiListAdapter wifiListAdapter;
     private MaterialButton main_BTN_location;
@@ -232,9 +219,7 @@ public class MainActivity extends AppCompatActivity {
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Enable Location Services")
                 .setMessage("Location services are required for this app to work properly.")
-                .setPositiveButton("Settings", (dialog, which) -> {
-                    startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-                })
+                .setPositiveButton("Settings", (dialog, which) -> startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)))
                 .setNegativeButton("Cancel", (dialog, which) -> finishAffinity())
                 .show();
     }
@@ -242,15 +227,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void initializeServiceConnection() {
         Intent serviceIntent = new Intent(this, MapDataService.class);
-        startService(serviceIntent);  // Start service before binding
+        startService(serviceIntent);
 
         serviceConnection = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName name, IBinder service) {
                 MapDataService.LocalBinder binder = (MapDataService.LocalBinder) service;
                 mapService = binder.getService();
-                setupMapDataObservers();
+                setupMapDataObservers();  // Always setup observers first
 
+                // Now check if we need to initialize location
                 if (!mapService.hasBaseLocation()) {
                     initializeLocation();
                 }
@@ -285,17 +271,14 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize other views
         wifiListRecyclerView = findViewById(R.id.main_RCV_wifiList);
-//        scanButton = findViewById(R.id.main_BTN_scan);
-//        manageButton = findViewById(R.id.main_BTN_manage);
+
         main_BTN_location = findViewById(R.id.main_BTN_location);
         visualizationContainer = findViewById(R.id.main_VIS_location);
 
         // Initialize empty states visibility
-//        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.VISIBLE);
         visualizationContainer.setVisibility(View.GONE);
         findViewById(R.id.main_LLC_empty_list).setVisibility(View.VISIBLE);
         wifiListRecyclerView.setVisibility(View.GONE);
-//        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.GONE);
         findViewById(R.id.main_VIS_location).setVisibility(View.VISIBLE);
         // Initialize location services
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -375,17 +358,26 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void setupMapFragment() {
-        mapFragment = new MapFragment();
-        getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.main_VIS_location, mapFragment)
-                .commit();
+        // Use existing instance if possible
+        mapFragment = (MapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.main_VIS_location);
+
+        if (mapFragment == null) {
+            mapFragment = new MapFragment();
+            getSupportFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.main_VIS_location, mapFragment)
+                    .commit();
+        }
 
         mapFragment.setOnMapReadyCallback(() -> {
             Log.d(TAG, "Map is ready");
             // Initialize location immediately when map is ready
-            if (mapService != null && !mapService.hasBaseLocation()) {
-                initializeLocation();
+            if (mapService != null) {
+                mapService.preInitializeMap();
+                if (!mapService.hasBaseLocation()) {
+                    initializeLocation();
+                }
             }
         });
     }
@@ -563,8 +555,10 @@ public class MainActivity extends AppCompatActivity {
         if (mapFragment != null) {
             mapFragment.cleanup();
         }
-        if (serviceConnection != null) {
+        if (serviceConnection != null && mapService != null) {
             unbindService(serviceConnection);
+            serviceConnection = null;
+            mapService = null;
         }
     }
 }

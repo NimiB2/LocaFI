@@ -11,6 +11,7 @@ import android.location.Location;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -25,6 +26,7 @@ import dev.nimrod.locafi.models.WifiPosition;
 
 public class MapDataService extends Service {
     private static final String TAG = "MapDataService";
+    private static MapDataService instance;
     private Location baseLocation;
     private final IBinder binder = new LocalBinder();
     private WifiManager wifiManager;
@@ -49,21 +51,29 @@ public class MapDataService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        instance = this;
         initializeService();
+    }
+    public synchronized void initializeIfNeeded() {
+        if (!isInitialized && !isInitializing) {
+            isInitializing = true;
+            startDataCollection();
+            isInitialized = true;
+        }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (!isInitializing) {
-            isInitializing = true;
-            startDataCollection();
-        }
+        initializeIfNeeded();
         return START_STICKY;
     }
 
     private void initializeService() {
         wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
         registerWifiScanReceiver();
+    }
+    public static synchronized MapDataService getInstance() {
+        return instance;
     }
 
     private void registerWifiScanReceiver() {
@@ -104,6 +114,13 @@ public class MapDataService extends Service {
             }
         }
     }
+
+    public boolean hasInitialData() {
+        return wifiPointsData.getValue() != null &&
+                !wifiPointsData.getValue().isEmpty();
+    }
+
+
 
     private void processScanResults() {
         if (wifiManager != null && checkWifiPermissions()) {
@@ -206,10 +223,36 @@ public class MapDataService extends Service {
     }
 
     public void startWithApproximateLocation() {
-        this.isPreciseLocation = false;
         if (!isInitialized) {
+            isPreciseLocation = false;
             startDataCollection();
             isInitialized = true;
+        }
+    }
+
+    public Bundle getServiceState() {
+        Bundle state = new Bundle();
+        state.putBoolean("initialized", isInitialized);
+        if (baseLocation != null) {
+            state.putParcelable("baseLocation", baseLocation);
+        }
+        return state;
+    }
+
+    public void preInitializeMap() {
+        isMapReady.postValue(true);
+        if (hasInitialData()) {
+            // Trigger immediate scan if we have data
+            performWifiScan();
+        }
+    }
+
+    public synchronized void updateLocationAccuracy(boolean precise) {
+        if (precise != isPreciseLocation) {
+            isPreciseLocation = precise;
+            if (baseLocation != null) {
+                performWifiScan();
+            }
         }
     }
 
