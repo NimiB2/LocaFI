@@ -28,12 +28,14 @@ import com.google.android.material.imageview.ShapeableImageView;
 
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.services.MapDataService;
+import dev.nimrod.locafi.utils.LocationPermissionHandler;
 
 @SuppressLint("CustomSplashScreen")
 public class SplashActivity extends AppCompatActivity {
     private static final String TAG = "SplashActivity";
     private ShapeableImageView logoImage;
     private FusedLocationProviderClient fusedLocationClient;
+    private LocationPermissionHandler permissionHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,8 +45,17 @@ public class SplashActivity extends AppCompatActivity {
         logoImage = findViewById(R.id.splash_IMG_logo);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        // Start initialization
-        initializeServices();
+        // Initialize permission handler
+        permissionHandler = new LocationPermissionHandler(this, new LocationPermissionHandler.PermissionCallback() {
+            @Override
+            public void onPermissionGranted() {
+                // Once permission is granted, proceed with initialization
+                initializeServices();
+            }
+        });
+
+        // Start permission check
+        permissionHandler.requestLocationPermission();
     }
 
     private void initializeServices() {
@@ -59,6 +70,9 @@ public class SplashActivity extends AppCompatActivity {
             showServiceEnableDialog();
             return;
         }
+        // Start MapDataService before animation
+        Intent serviceIntent = new Intent(this, MapDataService.class);
+        startService(serviceIntent);
 
         // Start animation directly
         startAnimation();
