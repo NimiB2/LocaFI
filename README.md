@@ -3,13 +3,11 @@
 ## Overview
 LocaFi is an Android application that calculates user location purely through WiFi signal analysis. The app's core functionality relies on detecting nearby WiFi networks and using their signal strengths to determine the user's position. As an auxiliary feature, the app offers the ability to compare this WiFi-based location with the device's actual GPS location, allowing users to assess the accuracy of the WiFi positioning system.
 
-## Screenshots
 
-### Map View with GPS Hidden
-![Map View with GPS Hidden](https://raw.githubusercontent.com/username/repository/branch/image1.png)
+![צילום מסך 2025-01-06 191106](https://github.com/user-attachments/assets/6c3d9a34-5540-4fab-b4d5-b6bc2f81a729)
 
-### Map View with GPS Shown
-![Map View with GPS Shown](https://raw.githubusercontent.com/username/repository/branch/image2.png)
+![צילום מסך 2025-01-06 191124](https://github.com/user-attachments/assets/b0b5df65-98f6-4c2c-a6f7-606d2da92670)
+
 
 ## Key Features
 
