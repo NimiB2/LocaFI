@@ -14,16 +14,12 @@ public class WifiTriangulation {
         calculatePossibleLocations();
     }
 
-    /**
-     * Calculate possible user locations based on WiFi points
-     */
+
     private void calculatePossibleLocations() {
         this.possibleLocations = LocationCalculator.calculatePossibleLocations(wifiPoints);
     }
 
-    /**
-     * Get the most likely user location
-     */
+
     public LatLng getMostLikelyLocation() {
         if (possibleLocations == null || possibleLocations.isEmpty()) {
             return null;
@@ -39,30 +35,19 @@ public class WifiTriangulation {
         return mostLikely.location;
     }
 
-    /**
-     * Get all possible locations with their probabilities
-     */
+
     public List<LocationCalculator.WeightedLocation> getPossibleLocations() {
         return possibleLocations;
     }
 
-    /**
-     * Set actual user location for comparison
-     */
     public void setUserLocation(LatLng location) {
         this.userLocation = location;
     }
 
-    /**
-     * Get actual user location
-     */
     public LatLng getUserLocation() {
         return userLocation;
     }
 
-    /**
-     * Get WiFi points used in triangulation
-     */
     public List<WifiPoint> getWifiPoints() {
         return wifiPoints;
     }
