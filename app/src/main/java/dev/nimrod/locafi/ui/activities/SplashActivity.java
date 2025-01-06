@@ -31,15 +31,15 @@ import com.google.android.material.imageview.ShapeableImageView;
 
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.services.MapDataService;
+import dev.nimrod.locafi.utils.LocationPermissionHandler;
 
 @SuppressLint("CustomSplashScreen")
 public class SplashActivity extends AppCompatActivity {
     private static final String TAG = "SplashActivity";
     private ShapeableImageView logoImage;
-    private MapDataService mapService;
-    private ServiceConnection serviceConnection;
-    private boolean isServiceReady = false;
-    private boolean isAnimationComplete = false;
+    private FusedLocationProviderClient fusedLocationClient;
+    private LocationPermissionHandler permissionHandler;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,51 +47,50 @@ public class SplashActivity extends AppCompatActivity {
         setContentView(R.layout.activity_splash);
 
         logoImage = findViewById(R.id.splash_IMG_logo);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        // Start both processes in parallel
-        initializeServices();
-        startLogoAnimation();
+        // Initialize permission handler
+        permissionHandler = new LocationPermissionHandler(this, new LocationPermissionHandler.PermissionCallback() {
+            @Override
+            public void onPermissionGranted() {
+                // Once permission is granted, proceed with initialization
+                initializeServices();
+            }
+        });
+
+        // Start permission check
+        permissionHandler.requestLocationPermission();
     }
 
     private void initializeServices() {
-        if (!checkServicesEnabled()) {
-            showServiceEnableDialog();
-            return;
-        }
-
-        Intent serviceIntent = new Intent(this, MapDataService.class);
-        startService(serviceIntent);
-
-        serviceConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                MapDataService.LocalBinder binder = (MapDataService.LocalBinder) service;
-                mapService = binder.getService();
-                mapService.initializeIfNeeded();
-                mapService.startWithApproximateLocation();
-                mapService.preInitializeMap();
-                isServiceReady = true;
-                tryStartMainActivity();
-            }
-
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                mapService = null;
-            }
-        };
-
-        bindService(new Intent(this, MapDataService.class),
-                serviceConnection, Context.BIND_AUTO_CREATE);
-    }
-
-    private boolean checkServicesEnabled() {
+        // Only check if services are enabled
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         boolean isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
         WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         boolean isWifiEnabled = wifiManager.isWifiEnabled();
 
-        return isLocationEnabled && isWifiEnabled;
+        if (!isLocationEnabled || !isWifiEnabled) {
+            showServiceEnableDialog();
+            return;
+        }
+
+        // Start animation directly
+        startAnimation();
+    }
+
+
+    private void startServiceAndAnimation(Location location) {
+        // Start the service with initial location
+        Intent serviceIntent = new Intent(this, MapDataService.class);
+        if (location != null) {
+            serviceIntent.putExtra("initial_latitude", location.getLatitude());
+            serviceIntent.putExtra("initial_longitude", location.getLongitude());
+        }
+        startService(serviceIntent);
+
+        // Start animation
+        startAnimation();
     }
 
     private void showServiceEnableDialog() {
@@ -105,11 +104,10 @@ public class SplashActivity extends AppCompatActivity {
                 .setNegativeButton("Cancel", (dialog, which) -> {
                     finish();
                 })
-                .setCancelable(false)
                 .show();
     }
 
-    private void startLogoAnimation() {
+    private void startAnimation() {
         logoImage.animate()
                 .scaleX(1.2f)
                 .scaleY(1.2f)
@@ -119,49 +117,19 @@ public class SplashActivity extends AppCompatActivity {
                 .setListener(new Animator.AnimatorListener() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
-                        isAnimationComplete = true;
-                        tryStartMainActivity();
+                        startMainActivity();
                     }
 
-                    @Override
-                    public void onAnimationStart(Animator animation) {}
-
-                    @Override
-                    public void onAnimationCancel(Animator animation) {}
-
-                    @Override
-                    public void onAnimationRepeat(Animator animation) {}
+                    @Override public void onAnimationStart(Animator animation) {}
+                    @Override public void onAnimationCancel(Animator animation) {}
+                    @Override public void onAnimationRepeat(Animator animation) {}
                 });
     }
 
-    private void tryStartMainActivity() {
-        // Only proceed when both conditions are met
-        if (isServiceReady && isAnimationComplete) {
-            Intent intent = new Intent(this, MainActivity.class);
-            startActivity(intent);
-            finish();
-        }
-    }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (serviceConnection != null && mapService != null) {
-            unbindService(serviceConnection);
-            serviceConnection = null;
-            mapService = null;
-        }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Check services again when returning from settings
-        if (!checkServicesEnabled()) {
-            showServiceEnableDialog();
-        } else if (!isServiceReady) {
-            // Restart service initialization if needed
-            initializeServices();
-        }
+    private void startMainActivity() {
+        Intent intent = new Intent(this, MainActivity.class);
+        startActivity(intent);
+        finish();
     }
 }
