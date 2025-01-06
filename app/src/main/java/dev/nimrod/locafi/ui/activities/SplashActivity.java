@@ -71,7 +71,8 @@ public class SplashActivity extends AppCompatActivity {
             showServiceEnableDialog();
             return;
         }
-
+        Intent serviceIntent = new Intent(this, MapDataService.class);
+        startService(serviceIntent);
         // Start animation directly
         startAnimation();
     }
