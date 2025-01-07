@@ -7,6 +7,6 @@
     <dimen name="height">200dp</dimen>
     <dimen name="logo_size">42dp</dimen>
     <dimen name="text_size">24sp</dimen>
-    <dimen name="card_margin">200dp</dimen>
+    <dimen name="card_margin">250dp</dimen>
     <dimen name="button_padding">80dp</dimen>
 </resources>

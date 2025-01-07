@@ -32,6 +32,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -97,6 +100,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
 
         permissionHandler = new LocationPermissionHandler(this, new LocationPermissionHandler.PermissionCallback() {
             @Override
@@ -211,9 +219,6 @@ public class MainActivity extends AppCompatActivity {
             public void onLocationResult(@NonNull LocationResult locationResult) {
                 Location location = locationResult.getLastLocation();
                 if (location != null && mapService != null) {
-                    if (location.getAccuracy() > 50) { // 50 meters threshold
-                        showInaccurateLocationDialog();
-                    }
                     mapService.updateBaseLocation(location);
                 }
             }
@@ -229,18 +234,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private void showInaccurateLocationDialog() {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Improve Location Accuracy")
-                .setMessage("Your current location accuracy is low. For better results:\n" +
-                        "• Enable GPS/High accuracy mode\n" +
-                        "• Move to an open area\n" +
-                        "• Wait a few moments for better signal")
-                .setPositiveButton("Open Settings", (dialog, which) ->
-                        startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)))
-                .setNegativeButton("Continue Anyway", null)
-                .show();
-    }
+
 
     private void requestNewLocation() {
         if (ActivityCompat.checkSelfPermission(this,
