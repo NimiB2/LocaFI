@@ -18,7 +18,7 @@ LocaFi is an Android application that calculates user location purely through Wi
 *Left: Main Screen showing WiFi Network Detection | Right: Comparing locations with GPS location*
 
 
-*Left: Main Screen showing WiFi Network Detection | Right: Comparing locations with GPS location*
+*The WiFi networks list, displaying SSID, BSSID, and signal strength details.*
 
 ## Key Features
 
