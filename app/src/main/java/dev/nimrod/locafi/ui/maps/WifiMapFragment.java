@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -24,6 +25,9 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +44,9 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
     private List<WiFiDevice> wifiDevices;
     private Marker gpsLocationMarker;
     private boolean isGpsLocationVisible = false;
+    private Polyline distanceLine;
+    private LatLng estimatedLatLng;
+    private LatLng gpsLatLng;
     private Map<String, Circle> deviceCircles = new HashMap<>();
     private Map<String, Marker> deviceMarkers = new HashMap<>();
 
@@ -81,13 +88,15 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
             if (gpsLocationMarker != null) {
                 gpsLocationMarker.remove();
                 gpsLocationMarker = null;
+                gpsLatLng = null;
                 isGpsLocationVisible = false;
             } else if (location != null) {
+                gpsLatLng = location;
                 MarkerOptions markerOptions = new MarkerOptions()
                         .position(location)
                         .title("Your GPS Location")
                         .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
-                        .zIndex(3.0f); // Higher than estimated location marker
+                        .zIndex(3.0f);
 
                 gpsLocationMarker = mMap.addMarker(markerOptions);
                 if (gpsLocationMarker != null) {
@@ -96,7 +105,42 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
                 isGpsLocationVisible = true;
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, DETAIL_ZOOM));
             }
+            updateDistanceLine();
         }
+    }
+    public void updateDistanceLine() {
+        if (mMap != null) {
+            // Remove existing line
+            if (distanceLine != null) {
+                distanceLine.remove();
+                distanceLine = null;
+            }
+
+            // Draw new line if both points exist and GPS is visible
+            if (estimatedLatLng != null && gpsLatLng != null && isGpsLocationVisible) {
+                PolylineOptions lineOptions = new PolylineOptions()
+                        .add(estimatedLatLng, gpsLatLng)
+                        .width(5)
+                        .color(Color.RED)
+                        .geodesic(true);
+                distanceLine = mMap.addPolyline(lineOptions);
+            }
+        }
+    }
+
+    public float calculateDistance() {
+        if (estimatedLatLng != null && gpsLatLng != null) {
+            Location loc1 = new Location("");
+            loc1.setLatitude(estimatedLatLng.latitude);
+            loc1.setLongitude(estimatedLatLng.longitude);
+
+            Location loc2 = new Location("");
+            loc2.setLatitude(gpsLatLng.latitude);
+            loc2.setLongitude(gpsLatLng.longitude);
+
+            return loc1.distanceTo(loc2);
+        }
+        return -1;
     }
 
     public void zoomToDevice(WiFiDevice device) {
@@ -113,32 +157,29 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
                 estimatedLocationMarker.remove();
             }
 
+            estimatedLatLng = location;  // Store the location
+
             // Create a distinctive marker for estimated location
             MarkerOptions markerOptions = new MarkerOptions()
                     .position(location)
                     .title("Your Estimated Location")
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)) // Blue marker
-                    .zIndex(2.0f) // Put it on top of other markers
-                    .flat(false); // This makes the marker stand upright
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
+                    .zIndex(2.0f)
+                    .flat(false);
 
             // Add the marker
             estimatedLocationMarker = mMap.addMarker(markerOptions);
             if (estimatedLocationMarker != null) {
-                estimatedLocationMarker.showInfoWindow(); // Show the title immediately
+                estimatedLocationMarker.showInfoWindow();
             }
 
-            // Set listener to keep info window visible
-            mMap.setOnCameraMoveStartedListener(reason -> {
-                if (estimatedLocationMarker != null) {
-                    estimatedLocationMarker.showInfoWindow();
-                }
-            });
+            // Update distance line
+            updateDistanceLine();
 
             // Zoom to location
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, DETAIL_ZOOM));
         }
     }
-
     private void updateMapWithDevices() {
         if (mMap == null || wifiDevices == null) return;
 

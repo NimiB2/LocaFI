@@ -136,23 +136,68 @@
         android:paddingHorizontal="@dimen/button_padding"
         app:layout_constraintBottom_toBottomOf="parent">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/main_BTN_location"
+        <!-- Estimated Location Section -->
+        <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:backgroundTint="@color/primary_color"
-            android:textColor="@color/secondary_color"
-            android:text="@string/your_location"
-            android:layout_marginBottom="@dimen/margin_m" />
+            android:orientation="horizontal"
+            android:layout_marginBottom="@dimen/margin_s">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/main_BTN_gps_location"
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/main_BTN_location"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:backgroundTint="@color/primary_color"
+                android:textColor="@color/secondary_color"
+                android:text="@string/your_location" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/main_TXT_estimated_location"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/margin_m"
+                android:layout_gravity="center_vertical"
+                android:textColor="@color/text_color"
+                android:text="No location" />
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <!-- GPS Location Section -->
+        <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:backgroundTint="@color/primary_color"
-            android:textColor="@color/secondary_color"
-            android:text="Show GPS Location"
-            android:layout_marginBottom="@dimen/margin_m" />
+            android:orientation="horizontal"
+            android:layout_marginBottom="@dimen/margin_s">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/main_BTN_gps_location"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:backgroundTint="@color/primary_color"
+                android:textColor="@color/secondary_color"
+                android:text="Show GPS Location" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/main_TXT_gps_location"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/margin_m"
+                android:layout_gravity="center_vertical"
+                android:textColor="@color/text_color"
+                android:text="No location" />
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <!-- Error Distance -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/main_TXT_error_distance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/margin_m"
+            android:gravity="center"
+            android:textColor="@color/text_color"
+            android:textStyle="bold"
+            android:text="Distance between locations: N/A" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 

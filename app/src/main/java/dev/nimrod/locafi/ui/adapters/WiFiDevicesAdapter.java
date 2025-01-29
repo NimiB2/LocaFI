@@ -42,8 +42,7 @@ public class WiFiDevicesAdapter extends RecyclerView.Adapter<WiFiDevicesAdapter.
         WiFiDevice device = devices.get(position);
 
         holder.nameTextView.setText("WiFi: " + device.getSsid());
-        holder.latTextView.setText("Latitude: " + device.getLatitude());
-        holder.lonTextView.setText("Longitude: " + device.getLongitude());
+
 
         Double lat = device.getLatitude();
         Double lon = device.getLongitude();
@@ -77,8 +76,6 @@ public class WiFiDevicesAdapter extends RecyclerView.Adapter<WiFiDevicesAdapter.
         ViewHolder(@NonNull View itemView) {
             super(itemView);
             nameTextView = itemView.findViewById(R.id.stored_wifi_MTV_name);
-            latTextView = itemView.findViewById(R.id.stored_wifi_MTV_lat);
-            lonTextView = itemView.findViewById(R.id.stored_wifi_MTV_lon);
             locationTextView = itemView.findViewById(R.id.stored_wifi_MTV_location);
             signalTextView = itemView.findViewById(R.id.stored_wifi_MTV_signal);
             signalProgress = itemView.findViewById(R.id.stored_wifi_progress_signal);

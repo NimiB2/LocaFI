@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -155,6 +156,7 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
             LatLng estimatedLocation = LocationCalculator.calculateLocation(devices);
             if (estimatedLocation != null && wifiMapFragment != null) {
                 wifiMapFragment.zoomToLocation(estimatedLocation);
+                updateLocationTexts(estimatedLocation, false);
             }
         });
     }
@@ -211,6 +213,26 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
         });
     }
 
+    private void updateLocationTexts(LatLng location, boolean isGPS) {
+        String locationText = String.format("%.6f, %.6f",
+                location.latitude, location.longitude);
+
+        if (isGPS) {
+            ((TextView) findViewById(R.id.main_TXT_gps_location)).setText(locationText);
+        } else {
+            ((TextView) findViewById(R.id.main_TXT_estimated_location)).setText(locationText);
+        }
+
+        // Update error distance if both locations are available
+        if (wifiMapFragment != null) {
+            float distance = wifiMapFragment.calculateDistance();
+            if (distance >= 0) {
+                String errorText = String.format("Distance between locations: %.2f meters", distance);
+                ((TextView) findViewById(R.id.main_TXT_error_distance)).setText(errorText);
+            }
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -246,7 +268,7 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
                                     location.getLongitude());
                             if (wifiMapFragment != null) {
                                 wifiMapFragment.toggleGPSLocation(userLocation);
-                                // Update button text based on visibility
+                                updateLocationTexts(userLocation, true);
                                 MaterialButton gpsButton = findViewById(R.id.main_BTN_gps_location);
                                 if (wifiMapFragment.isGpsLocationVisible()) {  // Changed to use getter method
                                     gpsButton.setText("Hide GPS Location");
