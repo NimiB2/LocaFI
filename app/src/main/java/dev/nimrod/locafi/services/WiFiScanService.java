@@ -23,7 +23,7 @@ public class WiFiScanService extends Service {
     private static final String CHANNEL_ID = "WIFI_SCAN_CHANNEL";
     public static final String ACTION_STOP_SERVICE = "stop_service";
     public static final String SCAN_RESULTS_UPDATE = "scan_results_update";
-    private static final int SCAN_INTERVAL = 30000; // 30 seconds
+    private static final int SCAN_INTERVAL = 10000; // 10 seconds
 
     private WiFiScanManager wifiScanManager;
     private boolean isScanning = false;
