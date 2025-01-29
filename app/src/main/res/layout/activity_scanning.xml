@@ -43,6 +43,7 @@
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- Start Scan Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/scanning_BTN_start"
         android:layout_width="0dp"
@@ -56,6 +57,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_margin="@dimen/margin_m" />
 
+    <!-- Stop Scan Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/scanning_BTN_stop"
         android:layout_width="0dp"
@@ -69,16 +71,44 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_margin="@dimen/margin_m" />
 
+    <!-- New Clear Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/scanning_BTN_clear"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/clear_all_data"
+        android:backgroundTint="@color/primary_color"
+        android:textColor="@color/secondary_color"
+        app:cornerRadius="12dp"
+        app:layout_constraintTop_toBottomOf="@id/scanning_BTN_stop"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="@dimen/margin_m" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/scanning_BTN_add_test"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Add Test Data"
+        android:backgroundTint="@color/primary_color"
+        android:textColor="@color/secondary_color"
+        app:cornerRadius="12dp"
+        app:layout_constraintTop_toBottomOf="@id/scanning_BTN_clear"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="@dimen/margin_m" />
+
+    <!-- WiFi List Card -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/scanning_MCV_wifiList"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_margin="@dimen/margin_m"
         app:cardElevation="@dimen/elevation"
-        app:layout_constraintTop_toBottomOf="@id/scanning_BTN_stop"
+        app:layout_constraintTop_toBottomOf="@id/scanning_BTN_add_test"
         app:layout_constraintBottom_toBottomOf="parent">
 
-        <androidx.appcompat.widget.LinearLayoutCompat
+    <androidx.appcompat.widget.LinearLayoutCompat
             android:id="@+id/scanning_LLC_empty_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

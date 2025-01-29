@@ -36,7 +36,7 @@
         android:id="@+id/gateway_BTN_scan"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/start_scanning"
+        android:text="@string/Scan_Page"
         android:backgroundTint="@color/primary_color"
         android:textColor="@color/secondary_color"
         app:cornerRadius="12dp"

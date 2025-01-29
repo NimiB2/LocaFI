@@ -17,7 +17,7 @@
     <!-- Main Screen Text -->
     <string name="wifi_scan_title">WiFi Network Scanner</string>
     <string name="wifi_scan_description">Discover and visualize nearby WiFi networks</string>
-    <string name="start_scanning">Start Scanning</string>
+    <string name="Scan_Page">WiFi Device Scan Page</string>
     <string name="manage_networks">Manage Networks</string>
     <string name="start_scanning_to_see_nearby_networks">Start scanning to see nearby networks</string>
     <string name="wifi_network_visualization">WiFi Network Visualization</string>
@@ -43,5 +43,6 @@
     <string name="signal_strength_label">" "</string>
     <string name="enter_main_screen">YOUR WIFI LOCATION</string>
     <string name="select_action">WELLCOME</string>
+    <string name="clear_all_data">Clear All Data</string>
 
 </resources>

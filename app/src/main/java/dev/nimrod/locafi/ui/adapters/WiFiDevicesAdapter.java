@@ -68,14 +68,7 @@ public class WiFiDevicesAdapter extends RecyclerView.Adapter<WiFiDevicesAdapter.
         return devices != null ? devices.size() : 0;
     }
 
-    /**
-     * Simple signal-level mapping for demonstration.
-     * Adjust logic based on your RSSI range and how you want to display signal strength (0..4).
-     */
     private int calculateSignalLevel(int rssi) {
-        // Example: map approximate ranges of dBm to 0-4
-        // dBm is often negative (e.g., -30 is strong, -90 is weak).
-        // Tweak as needed for your own scale.
         if (rssi >= -50) {
             return 4; // Excellent
         } else if (rssi >= -60) {

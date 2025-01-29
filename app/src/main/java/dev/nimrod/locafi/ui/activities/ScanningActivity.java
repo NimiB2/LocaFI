@@ -1,173 +1,185 @@
 package dev.nimrod.locafi.ui.activities;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
-
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.core.content.ContextCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
-import java.util.List;
-
+import com.google.android.material.button.MaterialButton;
 import dev.nimrod.locafi.R;
-import dev.nimrod.locafi.managers.WiFiScanManager;
 import dev.nimrod.locafi.models.WiFiDevice;
+import dev.nimrod.locafi.services.WiFiScanService;
 import dev.nimrod.locafi.ui.adapters.WiFiDevicesAdapter;
+import dev.nimrod.locafi.utils.FirebaseRepo;
 
 public class ScanningActivity extends AppCompatActivity {
-
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
 
-    private WiFiScanManager wifiScanManager;
+    private RecyclerView recyclerView;
+    private MaterialButton startButton;
+    private MaterialButton stopButton;
+    private MaterialButton clearButton;
+    private View emptyView;
+    private FirebaseRepo firebaseRepo;
+    private boolean isServiceRunning = false;
+
+    private static final String[] REQUIRED_PERMISSIONS = new String[] {
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.FOREGROUND_SERVICE_LOCATION
+    };
+
+    private final BroadcastReceiver updateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (WiFiScanService.SCAN_RESULTS_UPDATE.equals(intent.getAction())) {
+                loadWiFiDevices();
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // Edge-to-edge (your existing code)
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_scanning);
 
-        View mainLayout = findViewById(R.id.main);
-        ViewCompat.setOnApplyWindowInsetsListener(mainLayout, (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
+        setupViews();
+        setupButtons();
+        firebaseRepo = new FirebaseRepo();
 
-        // Initialize WiFiScanManager (ADDED)
-        wifiScanManager = new WiFiScanManager(this);
+        // Register for updates from service
+        LocalBroadcastManager.getInstance(this)
+                .registerReceiver(updateReceiver, new IntentFilter(WiFiScanService.SCAN_RESULTS_UPDATE));
 
-        checkWifiEnabled();
-        // Set up button click listeners
-        initViews();
+        loadWiFiDevices();
     }
 
-    private void initViews() {
-        // "Start Wi-Fi Scan" Button
-        findViewById(R.id.scanning_BTN_start).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (hasLocationPermission()) {
-                    startWiFiScan();
-                    Toast.makeText(ScanningActivity.this, "Starting WiFi scan...", Toast.LENGTH_SHORT).show();
-                } else {
-                    requestLocationPermission();
-                }
-            }
-        });
+    private void setupViews() {
+        recyclerView = findViewById(R.id.scanning_RCV_wifiList);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        // "Stop Wi-Fi Scan" Button
-        findViewById(R.id.scanning_BTN_stop).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                stopWiFiScan();
-            }
-        });
+        startButton = findViewById(R.id.scanning_BTN_start);
+        stopButton = findViewById(R.id.scanning_BTN_stop);
+        clearButton = findViewById(R.id.scanning_BTN_clear);
+        emptyView = findViewById(R.id.scanning_LLC_empty_list);
 
-        // "Return to Gateway" Button
-        findViewById(R.id.scanning_BTN_return_gateway).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(ScanningActivity.this, GatewayActivity.class);
-                startActivity(intent);
-                finish();
-            }
+        // Setup toolbar
+        findViewById(R.id.scanning_BTN_return_gateway).setOnClickListener(v -> {
+            Intent intent = new Intent(ScanningActivity.this, GatewayActivity.class);
+            startActivity(intent);
+            finish();
         });
-
     }
 
-    private void checkWifiEnabled() {
-        if (wifiScanManager != null && !wifiScanManager.isWifiEnabled()) {
-            Toast.makeText(this, "Please enable WiFi to scan networks", Toast.LENGTH_LONG).show();
-            startActivity(new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS));
+    private void setupButtons() {
+        startButton.setOnClickListener(v -> startScanning());
+        stopButton.setOnClickListener(v -> stopScanning());
+        clearButton.setOnClickListener(v -> showClearConfirmationDialog());
+
+        findViewById(R.id.scanning_BTN_add_test).setOnClickListener(v -> {
+            firebaseRepo.addTestData();
+            Toast.makeText(this, "Added test WiFi devices", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void startScanning() {
+        if (!hasLocationPermission()) {
+            requestLocationPermission();
+            return;
         }
+
+        Intent serviceIntent = new Intent(this, WiFiScanService.class);
+        startService(serviceIntent);
+        isServiceRunning = true;
+        updateButtonStates();
     }
 
-    private void startWiFiScan() {
-        wifiScanManager.startScan(new WiFiScanManager.ScanCallback() {
-            @Override
-            public void onScanResults(List<WiFiDevice> scannedDevices) {
-                runOnUiThread(() -> {
-                    if (scannedDevices.isEmpty()) {
-                        findViewById(R.id.scanning_LLC_empty_list).setVisibility(View.VISIBLE);
-                        findViewById(R.id.scanning_RCV_wifiList).setVisibility(View.GONE);
-                    } else {
-                        findViewById(R.id.scanning_LLC_empty_list).setVisibility(View.GONE);
-                        findViewById(R.id.scanning_RCV_wifiList).setVisibility(View.VISIBLE);
+    private void stopScanning() {
+        Intent serviceIntent = new Intent(this, WiFiScanService.class);
+        serviceIntent.setAction(WiFiScanService.ACTION_STOP_SERVICE);
+        startService(serviceIntent);
+        isServiceRunning = false;
+        updateButtonStates();
+    }
 
-                        RecyclerView recyclerView = findViewById(R.id.scanning_RCV_wifiList);
-                        recyclerView.setLayoutManager(new LinearLayoutManager(ScanningActivity.this));
-                        recyclerView.setAdapter(new WiFiDevicesAdapter(scannedDevices));
-                    }
-                });
+    private void updateButtonStates() {
+        startButton.setEnabled(!isServiceRunning);
+        stopButton.setEnabled(isServiceRunning);
+    }
 
-                Toast.makeText(ScanningActivity.this,
-                        "Scan complete! Found " + scannedDevices.size() + " networks",
-                        Toast.LENGTH_SHORT).show();
+    private void showClearConfirmationDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Clear All Data")
+                .setMessage("Are you sure you want to clear all saved WiFi devices?")
+                .setPositiveButton("Clear", (dialog, which) -> clearAllData())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void clearAllData() {
+        firebaseRepo.clearAllDevices(success -> {
+            if (success) {
+                Toast.makeText(this, "All data cleared", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Failed to clear data", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-
-    private void stopWiFiScan() {
-        wifiScanManager.stopScan();
-        Toast.makeText(this, "Stopping Wi-Fi Scan...", Toast.LENGTH_SHORT).show();
+    private void loadWiFiDevices() {
+        firebaseRepo.getAllDevices(devices -> {
+            if (devices != null && !devices.isEmpty()) {
+                recyclerView.setVisibility(View.VISIBLE);
+                emptyView.setVisibility(View.GONE);
+                recyclerView.setAdapter(new WiFiDevicesAdapter(devices));
+            } else {
+                recyclerView.setVisibility(View.GONE);
+                emptyView.setVisibility(View.VISIBLE);
+            }
+        });
     }
-
 
     private boolean hasLocationPermission() {
-        // For Android 6.0+, location permission is required to get scan results
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED;
-        }
-        // On older versions, permission is granted at install time
-        return true;
+        return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED;
     }
 
-
     private void requestLocationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    LOCATION_PERMISSION_REQUEST_CODE
-            );
+        requestPermissions(REQUIRED_PERMISSIONS, LOCATION_PERMISSION_REQUEST_CODE);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startScanning();
+            } else {
+                Toast.makeText(this, "Location permission required for WiFi scanning",
+                        Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0
-                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted
-                startWiFiScan();
-            } else {
-                // Permission denied
-                Toast.makeText(this,
-                        "Location permission denied. Cannot scan Wi-Fi networks.",
-                        Toast.LENGTH_SHORT).show();
-            }
-        }
+    protected void onDestroy() {
+        super.onDestroy();
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(updateReceiver);
     }
 }

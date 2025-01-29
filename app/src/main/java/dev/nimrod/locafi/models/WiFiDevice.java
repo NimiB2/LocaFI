@@ -7,8 +7,9 @@ public class WiFiDevice {
     private int signalStrength;
     private Double latitude;
     private Double longitude;
+    private long timestamp;
 
-    // Empty constructor needed for Firebase deserialization
+
     public WiFiDevice() {
     }
 
@@ -50,5 +51,14 @@ public class WiFiDevice {
 
     public void setLongitude(Double longitude) {
         this.longitude = longitude;
+    }
+
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
     }
 }
