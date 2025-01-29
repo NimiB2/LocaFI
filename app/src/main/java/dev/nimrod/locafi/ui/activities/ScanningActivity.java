@@ -50,6 +50,7 @@ public class ScanningActivity extends AppCompatActivity {
         // Initialize WiFiScanManager (ADDED)
         wifiScanManager = new WiFiScanManager(this);
 
+        checkWifiEnabled();
         // Set up button click listeners
         initViews();
     }
@@ -59,9 +60,9 @@ public class ScanningActivity extends AppCompatActivity {
         findViewById(R.id.scanning_BTN_start).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Check & request permissions before scanning
                 if (hasLocationPermission()) {
                     startWiFiScan();
+                    Toast.makeText(ScanningActivity.this, "Starting WiFi scan...", Toast.LENGTH_SHORT).show();
                 } else {
                     requestLocationPermission();
                 }
@@ -86,6 +87,13 @@ public class ScanningActivity extends AppCompatActivity {
             }
         });
 
+    }
+
+    private void checkWifiEnabled() {
+        if (wifiScanManager != null && !wifiScanManager.isWifiEnabled()) {
+            Toast.makeText(this, "Please enable WiFi to scan networks", Toast.LENGTH_LONG).show();
+            startActivity(new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS));
+        }
     }
 
     private void startWiFiScan() {

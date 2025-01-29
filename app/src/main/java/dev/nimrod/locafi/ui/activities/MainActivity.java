@@ -105,6 +105,8 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
+
+
         initViews();
         initButtons();
 
@@ -144,6 +146,19 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(MainActivity.this,
                     "Show user's exact location (TODO)",
                     Toast.LENGTH_SHORT).show();
+        });
+
+        MaterialToolbar toolbar = findViewById(R.id.main_ABL_appbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+
+        toolbar.setNavigationOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, GatewayActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            finish();
         });
     }
 
