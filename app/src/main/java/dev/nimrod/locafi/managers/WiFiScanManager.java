@@ -5,11 +5,15 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,12 +24,16 @@ public class WiFiScanManager {
 
     private final Context context;
     private final WifiManager wifiManager;
+    private final FusedLocationProviderClient fusedLocationClient;
+
     private ScanCallback callback;
     private BroadcastReceiver wifiScanReceiver;
 
     public WiFiScanManager(Context context) {
         this.context = context.getApplicationContext();
         this.wifiManager = (WifiManager) this.context.getSystemService(Context.WIFI_SERVICE);
+        this.fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
+
     }
 
     private boolean hasRequiredPermissions(Context context) {
@@ -79,30 +87,7 @@ public class WiFiScanManager {
             wifiScanReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, android.content.Intent intent) {
-                    if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                        Log.e("WiFiScanManager", "Missing ACCESS_FINE_LOCATION permission");
-                        if (callback != null) {
-                            callback.onScanResults(new ArrayList<>()); // Return empty list if no permissions
-                        }
-                        return;
-                    }
-
-                    List<ScanResult> scanResults = wifiManager.getScanResults();
-                    List<WiFiDevice> devices = new ArrayList<>();
-                    if (scanResults != null) {
-                        Log.d("WiFiScanManager", "Found " + scanResults.size() + " networks");
-                        for (ScanResult sr : scanResults) {
-                            WiFiDevice device = new WiFiDevice();
-                            device.setSsid(sr.SSID);
-                            device.setBssid(sr.BSSID);
-                            device.setSignalStrength(sr.level);
-                            devices.add(device);
-                            Log.d("WiFiScanManager", "Network: " + sr.SSID + " Strength: " + sr.level);
-                        }
-                    }
-                    if (callback != null) {
-                        callback.onScanResults(devices);
-                    }
+                    getCurrentLocationAndScanWifi();
                 }
             };
             context.registerReceiver(wifiScanReceiver,
@@ -117,6 +102,46 @@ public class WiFiScanManager {
         }
     }
 
+    private void getCurrentLocationAndScanWifi() {
+        if (ActivityCompat.checkSelfPermission(context,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(location -> {
+                    if (location != null) {
+                        processScanResults(location);
+                    }
+                });
+    }
+
+    private void processScanResults(Location location) {
+        if (ActivityCompat.checkSelfPermission(context,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        List<ScanResult> scanResults = wifiManager.getScanResults();
+        List<WiFiDevice> devices = new ArrayList<>();
+
+        if (scanResults != null) {
+            for (ScanResult sr : scanResults) {
+                WiFiDevice device = new WiFiDevice();
+                device.setSsid(sr.SSID);
+                device.setBssid(sr.BSSID);
+                device.setSignalStrength(sr.level);
+                device.setLatitude(location.getLatitude());
+                device.setLongitude(location.getLongitude());
+                device.setTimestamp(System.currentTimeMillis());
+                devices.add(device);
+            }
+        }
+
+        if (callback != null) {
+            callback.onScanResults(devices);
+        }
+    }
     // Callback interface for scan results
     public interface ScanCallback {
         void onScanResults(List<WiFiDevice> scannedDevices);

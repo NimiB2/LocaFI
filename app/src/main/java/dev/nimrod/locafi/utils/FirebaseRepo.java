@@ -24,20 +24,31 @@ public class FirebaseRepo {
             Log.e(TAG, "Cannot save device: BSSID is null or empty");
             return;
         }
+        DatabaseReference deviceRef = dbRef.child(wifiDevice.getBssid());
 
-        Log.d(TAG, "Attempting to save device: " + wifiDevice.getBssid());
-        Log.d(TAG, "Device data - SSID: " + wifiDevice.getSsid()
-                + ", Lat: " + wifiDevice.getLatitude()
-                + ", Long: " + wifiDevice.getLongitude());
+        deviceRef.get().addOnCompleteListener(task -> {
+            if (task.isSuccessful()) {
+                DataSnapshot snapshot = task.getResult();
+                WiFiDevice existingDevice = snapshot.getValue(WiFiDevice.class);
 
-        dbRef.child(wifiDevice.getBssid())
-                .setValue(wifiDevice)
-                .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Successfully saved device: " + wifiDevice.getBssid());
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to save device: " + wifiDevice.getBssid(), e);
-                });
+                // If device doesn't exist or this is a newer reading
+                if (existingDevice == null ||
+                        existingDevice.getTimestamp() < wifiDevice.getTimestamp()) {
+
+                    deviceRef.setValue(wifiDevice)
+                            .addOnSuccessListener(aVoid -> {
+                                Log.d(TAG, "Successfully saved/updated device: " +
+                                        wifiDevice.getBssid());
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e(TAG, "Failed to save device: " +
+                                        wifiDevice.getBssid(), e);
+                            });
+                }
+            } else {
+                Log.e(TAG, "Error checking existing device", task.getException());
+            }
+        });
     }
     public void getAllDevices(final GetAllDevicesCallback callback) {
         dbRef.addValueEventListener(new ValueEventListener() {
