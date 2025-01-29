@@ -4,29 +4,34 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.google.android.material.progressindicator.LinearProgressIndicator;
-
 import java.util.List;
-
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WiFiDevice;
+import dev.nimrod.locafi.utils.SignalStrengthHelper;
 
 public class WiFiDevicesAdapter extends RecyclerView.Adapter<WiFiDevicesAdapter.ViewHolder> {
 
     private List<WiFiDevice> devices;
+    private OnWiFiDeviceClickListener listener;
+
+    public interface OnWiFiDeviceClickListener {
+        void onWiFiDeviceClick(WiFiDevice device);
+    }
 
     public WiFiDevicesAdapter(List<WiFiDevice> devices) {
         this.devices = devices;
     }
 
+    public void setOnWiFiDeviceClickListener(OnWiFiDeviceClickListener listener) {
+        this.listener = listener;
+    }
+
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        // Inflate the new row layout (adjust file name as needed)
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.row_stored_wifi_device, parent, false);
         return new ViewHolder(view);
@@ -36,31 +41,24 @@ public class WiFiDevicesAdapter extends RecyclerView.Adapter<WiFiDevicesAdapter.
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         WiFiDevice device = devices.get(position);
 
-        // Name
         holder.nameTextView.setText("WiFi: " + device.getSsid());
-
-        // Latitude / Longitude
         holder.latTextView.setText("Latitude: " + device.getLatitude());
         holder.lonTextView.setText("Longitude: " + device.getLongitude());
 
-        // Location
         Double lat = device.getLatitude();
         Double lon = device.getLongitude();
-        String loc;
-        if (lat != null && lon != null) {
-            loc = "(" + lat + ", " + lon + ")";
-        } else {
-            loc = "Unknown";
-        }
+        String loc = (lat != null && lon != null) ? "(" + lat + ", " + lon + ")" : "Unknown";
         holder.locationTextView.setText("Location: " + loc);
 
-
-        // Signal Strength label
         holder.signalTextView.setText("Signal Strength: " + device.getSignalStrength());
+        holder.signalProgress.setProgress(SignalStrengthHelper.calculateSignalLevel(device.getSignalStrength()));
 
-        // Convert signal level to progress bar value
-        int signalLevel = calculateSignalLevel(device.getSignalStrength());
-        holder.signalProgress.setProgress(signalLevel);
+        // Set click listener
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onWiFiDeviceClick(device);
+            }
+        });
     }
 
     @Override
@@ -68,22 +66,7 @@ public class WiFiDevicesAdapter extends RecyclerView.Adapter<WiFiDevicesAdapter.
         return devices != null ? devices.size() : 0;
     }
 
-    private int calculateSignalLevel(int rssi) {
-        if (rssi >= -50) {
-            return 4; // Excellent
-        } else if (rssi >= -60) {
-            return 3; // Good
-        } else if (rssi >= -70) {
-            return 2; // Fair
-        } else if (rssi >= -80) {
-            return 1; // Poor
-        } else {
-            return 0; // Very poor
-        }
-    }
-
-    class ViewHolder extends RecyclerView.ViewHolder {
-
+    static class ViewHolder extends RecyclerView.ViewHolder {
         TextView nameTextView;
         TextView latTextView;
         TextView lonTextView;
@@ -93,13 +76,12 @@ public class WiFiDevicesAdapter extends RecyclerView.Adapter<WiFiDevicesAdapter.
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
-
-            nameTextView     = itemView.findViewById(R.id.stored_wifi_MTV_name);
-            latTextView      = itemView.findViewById(R.id.stored_wifi_MTV_lat);
-            lonTextView      = itemView.findViewById(R.id.stored_wifi_MTV_lon);
+            nameTextView = itemView.findViewById(R.id.stored_wifi_MTV_name);
+            latTextView = itemView.findViewById(R.id.stored_wifi_MTV_lat);
+            lonTextView = itemView.findViewById(R.id.stored_wifi_MTV_lon);
             locationTextView = itemView.findViewById(R.id.stored_wifi_MTV_location);
-            signalTextView   = itemView.findViewById(R.id.stored_wifi_MTV_signal);
-            signalProgress   = itemView.findViewById(R.id.stored_wifi_progress_signal);
+            signalTextView = itemView.findViewById(R.id.stored_wifi_MTV_signal);
+            signalProgress = itemView.findViewById(R.id.stored_wifi_progress_signal);
         }
     }
 }

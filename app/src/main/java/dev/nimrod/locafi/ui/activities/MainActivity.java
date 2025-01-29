@@ -27,10 +27,7 @@ import dev.nimrod.locafi.utils.FirebaseRepo;
 import dev.nimrod.locafi.maps.WifiMapFragment;
 
 
-public class MainActivity extends AppCompatActivity {
-    private View mainLayout;
-
-    // Views from activity_main.xml
+public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapter.OnWiFiDeviceClickListener {    private View mainLayout;
     private MaterialCardView mainMCVVisualization;
     private CircularProgressIndicator mainPGILoading;
     private View mainVISLocation;
@@ -69,7 +66,6 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void initViews() {
-        // Initialize the basic views first
         mainMCVVisualization = findViewById(R.id.main_MCV_visualization);
         mainPGILoading = findViewById(R.id.main_PGI_loading);
         mainVISLocation = findViewById(R.id.main_VIS_location);
@@ -79,11 +75,8 @@ public class MainActivity extends AppCompatActivity {
         mainRCVWifiList.setLayoutManager(new LinearLayoutManager(this));
         mainLLCButtons = findViewById(R.id.main_LLC_buttons);
 
-        // Now we can safely set visibility and initialize the map
         if (mainVISLocation != null) {
             mainVISLocation.setVisibility(View.VISIBLE);
-
-            // Initialize map fragment
             wifiMapFragment = new WifiMapFragment();
             getSupportFragmentManager()
                     .beginTransaction()
@@ -160,7 +153,15 @@ public class MainActivity extends AppCompatActivity {
     private void updateRecyclerView(List<WiFiDevice> devices) {
         if (mainRCVWifiList != null) {
             WiFiDevicesAdapter adapter = new WiFiDevicesAdapter(devices);
+            adapter.setOnWiFiDeviceClickListener(this);
             mainRCVWifiList.setAdapter(adapter);
+        }
+    }
+
+    @Override
+    public void onWiFiDeviceClick(WiFiDevice device) {
+        if (wifiMapFragment != null) {
+            wifiMapFragment.zoomToDevice(device);
         }
     }
 }

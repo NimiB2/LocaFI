@@ -1,5 +1,8 @@
 package dev.nimrod.locafi.maps;
 
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -7,94 +10,151 @@ import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.fragment.app.Fragment;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WiFiDevice;
+import dev.nimrod.locafi.utils.SignalStrengthHelper;
 
 public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
     private static final String TAG = "WifiMapFragment";
+    private static final float DEFAULT_ZOOM = 15f;
+    private static final float DETAIL_ZOOM = 18f;
 
     private GoogleMap mMap;
     private List<WiFiDevice> wifiDevices;
+    private Map<String, Circle> deviceCircles = new HashMap<>();
+    private Map<String, Marker> deviceMarkers = new HashMap<>();
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        // Inflate your XML with the <fragment> inside
         return inflater.inflate(R.layout.fragment_wifi_map, container, false);
     }
 
     @Override
-    public void onViewCreated(@NonNull View view,
-                              @Nullable Bundle savedInstanceState) {
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-
-        // Retrieve the existing map fragment from the layout
-        SupportMapFragment mapFragment =
-                (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
-
+        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager()
+                .findFragmentById(R.id.map);
         if (mapFragment != null) {
-            mapFragment.getMapAsync(this);  // Initialize map async
-        } else {
-            Log.e(TAG, "Error: Could not find the map fragment");
+            mapFragment.getMapAsync(this);
         }
     }
 
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
-        Log.d(TAG, "onMapReady called");
         mMap = googleMap;
-
-        // Enable map UI features
         mMap.getUiSettings().setZoomControlsEnabled(true);
         mMap.getUiSettings().setMyLocationButtonEnabled(true);
-
-        // If you already have a list of WiFi devices, you can update them:
         updateMapWithDevices();
     }
 
     public void updateWiFiDevices(List<WiFiDevice> devices) {
-        Log.d(TAG, "updateWiFiDevices called with "
-                + (devices != null ? devices.size() : 0) + " devices");
         this.wifiDevices = devices;
-        // If the map is ready, plot them
         if (mMap != null) {
             updateMapWithDevices();
         }
     }
 
-    private void updateMapWithDevices() {
-        if (mMap == null || wifiDevices == null) {
-            return;
+    public void zoomToDevice(WiFiDevice device) {
+        if (mMap != null && device.getLatitude() != null && device.getLongitude() != null) {
+            LatLng position = new LatLng(device.getLatitude(), device.getLongitude());
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(position, DETAIL_ZOOM));
         }
-        mMap.clear();
+    }
 
-        // Default location example
+    private void updateMapWithDevices() {
+        if (mMap == null || wifiDevices == null) return;
+
+        // Clear existing markers and circles
+        clearMarkersAndCircles();
+
         LatLng defaultLocation = new LatLng(37.422131, -122.084801);
         boolean hasValidDevice = false;
 
         for (WiFiDevice device : wifiDevices) {
             if (device.getLatitude() != null && device.getLongitude() != null) {
                 LatLng position = new LatLng(device.getLatitude(), device.getLongitude());
-                mMap.addMarker(new MarkerOptions()
+                int color = SignalStrengthHelper.getColorForSignalStrength(device.getSignalStrength());
+                float radius = SignalStrengthHelper.getCircleRadius(device.getSignalStrength());
+
+                // Add circle
+                Circle circle = mMap.addCircle(new CircleOptions()
+                        .center(position)
+                        .radius(radius)
+                        .strokeColor(color)
+                        .fillColor(color & 0x40FFFFFF) // 25% opacity
+                        .strokeWidth(2));
+                deviceCircles.put(device.getBssid(), circle);
+
+                // Add colored marker
+                Marker marker = mMap.addMarker(new MarkerOptions()
                         .position(position)
                         .title(device.getSsid())
-                        .snippet("Signal: " + device.getSignalStrength() + " dBm"));
+                        .snippet("Signal: " + device.getSignalStrength() + " dBm")
+                        .icon(getBitmapDescriptor(color)));
+                if (marker != null) {
+                    deviceMarkers.put(device.getBssid(), marker);
+                }
+
                 if (!hasValidDevice) {
                     defaultLocation = position;
                     hasValidDevice = true;
                 }
             }
         }
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 15f));
+
+        if (hasValidDevice) {
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, DEFAULT_ZOOM));
+        }
+    }
+
+    private void clearMarkersAndCircles() {
+        for (Circle circle : deviceCircles.values()) {
+            circle.remove();
+        }
+        deviceCircles.clear();
+
+        for (Marker marker : deviceMarkers.values()) {
+            marker.remove();
+        }
+        deviceMarkers.clear();
+    }
+
+    private BitmapDescriptor getBitmapDescriptor(int color) {
+        if (getContext() == null) return BitmapDescriptorFactory.defaultMarker();
+
+        Drawable vectorDrawable = requireContext().getDrawable(R.drawable.baseline_location_on_24);
+        if (vectorDrawable == null) return BitmapDescriptorFactory.defaultMarker();
+
+        Drawable wrappedDrawable = DrawableCompat.wrap(vectorDrawable);
+        DrawableCompat.setTint(wrappedDrawable, color);
+
+        int width = wrappedDrawable.getIntrinsicWidth();
+        int height = wrappedDrawable.getIntrinsicHeight();
+
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        wrappedDrawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        wrappedDrawable.draw(canvas);
+
+        return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
 }
