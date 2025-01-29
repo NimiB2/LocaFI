@@ -2,6 +2,7 @@ package dev.nimrod.locafi.maps;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.util.Log;
@@ -33,8 +34,8 @@ import dev.nimrod.locafi.utils.SignalStrengthHelper;
 public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
     private static final String TAG = "WifiMapFragment";
     private static final float DEFAULT_ZOOM = 15f;
-    private static final float DETAIL_ZOOM = 18f;
-
+    private static final float DETAIL_ZOOM = 25f;
+    private Marker estimatedLocationMarker;
     private GoogleMap mMap;
     private List<WiFiDevice> wifiDevices;
     private Map<String, Circle> deviceCircles = new HashMap<>();
@@ -77,6 +78,39 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
         if (mMap != null && device.getLatitude() != null && device.getLongitude() != null) {
             LatLng position = new LatLng(device.getLatitude(), device.getLongitude());
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(position, DETAIL_ZOOM));
+        }
+    }
+
+    public void zoomToLocation(LatLng location) {
+        if (mMap != null) {
+            // Clear any previous estimated location marker
+            if (estimatedLocationMarker != null) {
+                estimatedLocationMarker.remove();
+            }
+
+            // Create a distinctive marker for estimated location
+            MarkerOptions markerOptions = new MarkerOptions()
+                    .position(location)
+                    .title("Your Estimated Location")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)) // Blue marker
+                    .zIndex(2.0f) // Put it on top of other markers
+                    .flat(false); // This makes the marker stand upright
+
+            // Add the marker
+            estimatedLocationMarker = mMap.addMarker(markerOptions);
+            if (estimatedLocationMarker != null) {
+                estimatedLocationMarker.showInfoWindow(); // Show the title immediately
+            }
+
+            // Set listener to keep info window visible
+            mMap.setOnCameraMoveStartedListener(reason -> {
+                if (estimatedLocationMarker != null) {
+                    estimatedLocationMarker.showInfoWindow();
+                }
+            });
+
+            // Zoom to location
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, DETAIL_ZOOM));
         }
     }
 
@@ -136,6 +170,12 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
             marker.remove();
         }
         deviceMarkers.clear();
+
+        // Clear estimated location marker if it exists
+        if (estimatedLocationMarker != null) {
+            estimatedLocationMarker.remove();
+            estimatedLocationMarker = null;
+        }
     }
 
     private BitmapDescriptor getBitmapDescriptor(int color) {

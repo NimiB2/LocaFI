@@ -142,7 +142,7 @@
             android:layout_height="wrap_content"
             android:backgroundTint="@color/primary_color"
             android:textColor="@color/secondary_color"
-            android:text="@string/your_exact_gps_location"
+            android:text="@string/your_location"
             android:layout_marginBottom="@dimen/margin_m" />
 
 

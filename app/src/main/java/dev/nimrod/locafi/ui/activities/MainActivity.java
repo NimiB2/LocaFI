@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
@@ -25,6 +26,7 @@ import dev.nimrod.locafi.models.WiFiDevice;
 import dev.nimrod.locafi.ui.adapters.WiFiDevicesAdapter;
 import dev.nimrod.locafi.utils.FirebaseRepo;
 import dev.nimrod.locafi.maps.WifiMapFragment;
+import dev.nimrod.locafi.utils.LocationCalculator;
 
 
 public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapter.OnWiFiDeviceClickListener {    private View mainLayout;
@@ -92,10 +94,7 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
     private void initButtons() {
         // "Your Exact GPS Location" button
         findViewById(R.id.main_BTN_location).setOnClickListener(view -> {
-            // TODO: Show your map or get the user’s exact location
-            Toast.makeText(MainActivity.this,
-                    "Show user's exact location (TODO)",
-                    Toast.LENGTH_SHORT).show();
+            showEstimatedLocation();
         });
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
@@ -136,6 +135,21 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
         }).start();
     }
 
+    private void showEstimatedLocation() {
+        firebaseRepo.getAllDevices(devices -> {
+            if (devices == null || devices.isEmpty()) {
+                Toast.makeText(MainActivity.this,
+                        "No WiFi devices available for location estimation",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            LatLng estimatedLocation = LocationCalculator.calculateLocation(devices);
+            if (estimatedLocation != null && wifiMapFragment != null) {
+                wifiMapFragment.zoomToLocation(estimatedLocation);
+            }
+        });
+    }
 
     private void showLoading(boolean isLoading) {
         if (mainPGILoading != null) {

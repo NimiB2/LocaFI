@@ -24,7 +24,7 @@
     <string name="press_scan_to_discover_networks">Scanning is in progress, please wait patiently.</string>
     <string name="no_networks_found">No Networks Found</string>
     <string name="center_on_wifi_location">LocaFI Me</string>
-    <string name="your_exact_gps_location">Get My GPS Location</string>
+    <string name="your_location">Get Your Estimate Location</string>
 
     <string name="show_real_location">Show Real Location</string>
     <string name="hide_comparison">Hide Comparison</string>
