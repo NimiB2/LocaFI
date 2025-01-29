@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/row_stored_wifi_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/background"
+    android:padding="@dimen/margin_m"
+    tools:ignore="MissingConstraints">
+
+    <!-- Top Row: WiFi Name + Lat/Lon Container -->
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="@dimen/margin_s">
+
+        <!-- WiFi Name -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/stored_wifi_MTV_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/wifi_name_label"
+            android:textAppearance="?attr/textAppearanceSubtitle1"
+            tools:text="WiFi Name: MyNetwork" />
+
+        <!-- Container for Lat/Lon -->
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Latitude -->
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/stored_wifi_MTV_lat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/latitude_label"
+                android:textAppearance="?attr/textAppearanceBody2"
+                tools:text="Latitude: 32.1234" />
+
+            <!-- Longitude -->
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/stored_wifi_MTV_lon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/longitude_label"
+                android:textAppearance="?attr/textAppearanceBody2"
+                tools:text="Longitude: 34.5678" />
+        </androidx.appcompat.widget.LinearLayoutCompat>
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+    <!-- Location Info -->
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/stored_wifi_MTV_location"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/location_label"
+        android:textAppearance="?attr/textAppearanceBody2"
+        tools:text="Location: Unknown" />
+
+    <!-- Signal Strength -->
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/stored_wifi_MTV_signal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/signal_strength_label"
+        android:textAppearance="?attr/textAppearanceBody1"
+        android:layout_marginTop="@dimen/margin_s"
+        tools:text="Signal Strength: Strong" />
+
+    <!-- Progress Indicator for Signal Strength -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/stored_wifi_progress_signal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="4"
+        android:progress="0"
+        android:layout_marginTop="@dimen/margin_s"
+        app:indicatorColor="@color/primary_color"
+        app:trackColor="@color/secondary_background" />
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="@dimen/margin_m"
+        android:background="@color/secondary_color" />
+
+</androidx.appcompat.widget.LinearLayoutCompat>

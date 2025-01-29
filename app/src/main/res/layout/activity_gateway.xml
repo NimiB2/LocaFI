@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/gateway_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    tools:context=".ui.activities.GatewayActivity">
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/gateway_TXT_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/select_action"
+        android:textSize="@dimen/text_size"
+        android:textColor="@color/text_color"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="@dimen/button_padding" />
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/scanning_IMG_center_icon"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@mipmap/logo"
+        android:contentDescription="@string/app_logo"
+        app:layout_constraintTop_toBottomOf="@+id/gateway_TXT_title"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="@dimen/button_padding"
+        android:layout_marginBottom="24dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/gateway_BTN_scan"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/start_scanning"
+        android:backgroundTint="@color/primary_color"
+        android:textColor="@color/secondary_color"
+        app:cornerRadius="12dp"
+        app:layout_constraintTop_toBottomOf="@id/scanning_IMG_center_icon"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="@dimen/logo_size" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/gateway_BTN_main"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/enter_main_screen"
+        android:backgroundTint="@color/secondary_color"
+        android:textColor="@color/primary_color"
+        app:cornerRadius="12dp"
+        app:layout_constraintTop_toBottomOf="@id/gateway_BTN_scan"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginHorizontal="@dimen/logo_size"
+        android:layout_marginTop="@dimen/margin_m" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

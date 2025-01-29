@@ -6,9 +6,7 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" /> <!-- Hardware feature declaration -->
     <uses-feature
         android:name="android.hardware.wifi"
-        android:required="true" />
-
-    <!-- LOCATION feature declaration -->
+        android:required="true" /> <!-- LOCATION feature declaration -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
@@ -22,6 +20,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LocaFI"
         tools:targetApi="31">
+        <activity
+            android:name=".ui.activities.GatewayActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.activities.ScanningActivity"
+            android:exported="false" />
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
@@ -32,14 +36,13 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".ui.activities.MainActivity"
             android:exported="false" />
-
 
         <service
             android:name=".services.MapDataService"

@@ -46,53 +46,45 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
+import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import android.Manifest;
 
-import dev.nimrod.locafi.BuildConfig;
 import dev.nimrod.locafi.R;
+import dev.nimrod.locafi.models.WiFiDevice;
 import dev.nimrod.locafi.models.WifiPoint;
-import dev.nimrod.locafi.models.WifiPosition;
 import dev.nimrod.locafi.services.MapDataService;
+import dev.nimrod.locafi.ui.adapters.WiFiDevicesAdapter;
 import dev.nimrod.locafi.ui.adapters.WifiListAdapter;
-import dev.nimrod.locafi.ui.views.LocationView;
 import dev.nimrod.locafi.ui.views.MapFragment;
+import dev.nimrod.locafi.utils.FirebaseRepo;
 import dev.nimrod.locafi.utils.LocationPermissionHandler;
 
 
 public class MainActivity extends AppCompatActivity {
-    private static final String TAG = "MainActivity";
+    private View mainLayout;
 
-    private FusedLocationProviderClient fusedLocationClient;
-    private boolean initialPositionSet = false;
-    private LocationCallback locationCallback;
+    // Views from activity_main.xml
+    private MaterialCardView mainMCVVisualization;
+    private CircularProgressIndicator mainPGILoading;
+    private View mainVISLocation;
+    private MaterialCardView mainMCVWifiList;
+    private View mainLLCEmptyList;
+    private RecyclerView mainRCVWifiList;
+    private View mainLLCButtons;
 
-    private MapFragment mapFragment;
-    private MapDataService mapService;
-    private ServiceConnection serviceConnection;
-
-    private LocationPermissionHandler permissionHandler;
-
-    // UI Components
-    private RecyclerView wifiListRecyclerView;
-    private MaterialButton scanButton;
-    private MaterialButton manageButton;
-    private FrameLayout visualizationContainer;
-    private WifiListAdapter wifiListAdapter;
-    private MaterialButton main_BTN_location;
-    private boolean isComparisonMode = false;
 
 
     @Override
@@ -106,346 +98,101 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        permissionHandler = new LocationPermissionHandler(this, new LocationPermissionHandler.PermissionCallback() {
-            @Override
-            public void onPermissionGranted() {
-                initializeApp();
-            }
+        mainLayout = findViewById(R.id.main);
+        ViewCompat.setOnApplyWindowInsetsListener(mainLayout, (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
         });
-        permissionHandler.requestLocationPermission();
-    }
 
-    private void initializeApp() {
-        // Check for location services first
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            showLocationServicesDialog();
-            return;
-        }
+        initViews();
+        initButtons();
 
-        initializeServiceConnection();
-        initializeViews();
-        initializeServices();
-        setupMapFragment();
-        setupListeners();
-        setupRecyclerView();
-    }
-
-    private void showLocationServicesDialog() {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Enable Location Services")
-                .setMessage("Location services are required for this app to work properly.")
-                .setPositiveButton("Settings", (dialog, which) -> {
-                    startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-                })
-                .setNegativeButton("Cancel", (dialog, which) -> finishAffinity())
-                .show();
+        loadWiFiDevices();
     }
 
 
-    private void initializeServiceConnection() {
-        Intent serviceIntent = new Intent(this, MapDataService.class);
-        startService(serviceIntent);  // Start service before binding
+    private void initViews() {
+        // "Visualization Container" card
+        mainMCVVisualization = findViewById(R.id.main_MCV_visualization);
 
-        serviceConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                MapDataService.LocalBinder binder = (MapDataService.LocalBinder) service;
-                mapService = binder.getService();
-                setupMapDataObservers();
+        // Progress indicator inside the visualization card
+        mainPGILoading = findViewById(R.id.main_PGI_loading);
 
-                if (!mapService.hasBaseLocation()) {
-                    initializeLocation();
-                }
-            }
+        // FrameLayout for location visualization (currently hidden)
+        mainVISLocation = findViewById(R.id.main_VIS_location);
 
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                mapService = null;
-            }
-        };
+        // Wi-Fi List Card
+        mainMCVWifiList = findViewById(R.id.main_MCV_wifiList);
 
-        bindService(new Intent(this, MapDataService.class),
-                serviceConnection, Context.BIND_AUTO_CREATE);
-    }
+        // "Empty list" layout
+        mainLLCEmptyList = findViewById(R.id.main_LLC_empty_list);
 
-    public void resetComparisonMode() {
-        isComparisonMode = false;
-        updateComparisonUI();
-    }
+        // RecyclerView for showing Wi-Fi devices
+        mainRCVWifiList = findViewById(R.id.main_RCV_wifiList);
+        mainRCVWifiList.setLayoutManager(new LinearLayoutManager(this));
 
-    private void updateComparisonUI() {
-        // Update map fragment
-        if (mapFragment != null) {
-            mapFragment.toggleLocationComparison(isComparisonMode);
-        }
-    }
-
-    private void initializeViews() {
-        // Initialize toolbar
-        MaterialToolbar toolbar = findViewById(R.id.main_MTB_toolbar);
-        setSupportActionBar(toolbar);
-
-        // Initialize other views
-        wifiListRecyclerView = findViewById(R.id.main_RCV_wifiList);
-
-        main_BTN_location = findViewById(R.id.main_BTN_location);
-        visualizationContainer = findViewById(R.id.main_VIS_location);
-
-        // Initialize empty states visibility
-
-        visualizationContainer.setVisibility(View.GONE);
-        findViewById(R.id.main_LLC_empty_list).setVisibility(View.VISIBLE);
-        wifiListRecyclerView.setVisibility(View.GONE);
-//        findViewById(R.id.main_LLC_empty_visualization).setVisibility(View.GONE);
-        findViewById(R.id.main_VIS_location).setVisibility(View.VISIBLE);
-        // Initialize location services
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-    }
-
-    private void initializeServices() {
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-    }
-
-    private void initializeLocation() {
-        Log.d(TAG, "Initializing location updates");
-        LocationRequest locationRequest = LocationRequest.create()
-                .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-                .setInterval(10000);
-
-        locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(@NonNull LocationResult locationResult) {
-                Location location = locationResult.getLastLocation();
-                if (location != null && mapService != null) {
-                    mapService.updateBaseLocation(location);
-                }
-            }
-        };
-
-        try {
-            fusedLocationClient.requestLocationUpdates(locationRequest,
-                    locationCallback,
-                    Looper.getMainLooper());
-        } catch (SecurityException e) {
-            Log.e(TAG, "Error requesting location updates: " + e.getMessage());
-        }
+        // Bottom Buttons container
+        mainLLCButtons = findViewById(R.id.main_LLC_buttons);
     }
 
 
-
-
-    private void requestNewLocation() {
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-
-        LocationRequest locationRequest = LocationRequest.create()
-                .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-                .setInterval(10000);  // Update every 10 seconds
-
-        fusedLocationClient.requestLocationUpdates(locationRequest,
-                new LocationCallback() {
-                    @Override
-                    public void onLocationResult(@NonNull LocationResult locationResult) {
-                        Location location = locationResult.getLastLocation();
-                        if (location != null && mapService != null) {
-                            mapService.updateBaseLocation(location);
-                        }
-                    }
-                },
-                Looper.getMainLooper());
-    }
-
-
-    private void setupMapFragment() {
-        mapFragment = new MapFragment();
-        getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.main_VIS_location, mapFragment)
-                .commit();
-
-        mapFragment.setOnMapReadyCallback(() -> {
-            Log.d(TAG, "Map is ready");
-            // Initialize location immediately when map is ready
-            if (mapService != null && !mapService.hasBaseLocation()) {
-                initializeLocation();
-            }
+    private void initButtons() {
+        // "Your Exact GPS Location" button
+        findViewById(R.id.main_BTN_location).setOnClickListener(view -> {
+            // TODO: Show your map or get the user’s exact location
+            Toast.makeText(MainActivity.this,
+                    "Show user's exact location (TODO)",
+                    Toast.LENGTH_SHORT).show();
         });
     }
 
-    private void setupMapDataObservers() {
-        mapService.getWifiPointsData().observe(this, wifiPoints -> {
-            Log.d(TAG, "Received " + (wifiPoints != null ? wifiPoints.size() : 0) + " WiFi points");
 
-            // Update map
-            if (mapFragment != null) {
-                mapFragment.updateWifiPoints(wifiPoints);
+    private void loadWiFiDevices() {
+        showLoading(true);
 
-                // Set initial position only once using first WiFi point
-                if (wifiPoints != null && !wifiPoints.isEmpty() && !initialPositionSet) {
-                    WifiPoint firstPoint = wifiPoints.get(0);
-                    if (firstPoint.hasValidPosition()) {
-                        mapFragment.setInitialPosition(new LatLng(firstPoint.getLatitude(),
-                                firstPoint.getLongitude()), 19f);
-                        initialPositionSet = true;
-                    }
-                }
-            }
-
-            if (wifiPoints != null && !wifiPoints.isEmpty()) {
-                wifiListAdapter.updateData(wifiPoints);
-                updateWifiListVisibility(true);
+        // Example using a hypothetical FirebaseRepo
+        FirebaseRepo repo = new FirebaseRepo();
+        repo.getAllDevices(devices -> {
+            showLoading(false);
+            if (devices == null || devices.isEmpty()) {
+                showEmptyList(true);
             } else {
-                updateWifiListVisibility(false);
-            }
-
-            findViewById(R.id.main_PGI_loading).setVisibility(View.GONE);
-        });
-
-        mapService.getIsMapReady().observe(this, isReady -> {
-            if (isReady) {
-                findViewById(R.id.main_PGI_loading).setVisibility(View.GONE);
+                showEmptyList(false);
+                updateRecyclerView(devices);
             }
         });
-    }
 
-    private void updateWifiListVisibility(boolean hasWifiPoints) {
-        findViewById(R.id.main_LLC_empty_list).setVisibility(
-                hasWifiPoints ? View.GONE : View.VISIBLE);
-        wifiListRecyclerView.setVisibility(
-                hasWifiPoints ? View.VISIBLE : View.GONE);
     }
 
 
-    private void setupListeners() {
-        main_BTN_location.setOnClickListener(v -> {
-            isComparisonMode = !isComparisonMode;
-            updateComparisonMode();
-        });
-    }
-
-    private void updateComparisonMode() {
-        // Update button background color
-        main_BTN_location.setBackgroundTintList(ColorStateList.valueOf(
-                getResources().getColor(
-                        isComparisonMode ? R.color.secondary_color : R.color.primary_color,
-                        null
-                )
-        ));
-
-        // Update button text and text color
-        main_BTN_location.setText(isComparisonMode ?
-                R.string.hide_gps_location : R.string.show_gps_location);
-        main_BTN_location.setTextColor(getResources().getColor(
-                isComparisonMode ? R.color.primary_color : R.color.secondary_color,
-                null
-        ));
-
-        // Update map fragment
-        if (mapFragment != null) {
-            mapFragment.toggleLocationComparison(isComparisonMode);
+    private void showLoading(boolean isLoading) {
+        if (isLoading) {
+            mainPGILoading.setVisibility(View.VISIBLE);
+        } else {
+            mainPGILoading.setVisibility(View.GONE);
         }
     }
 
 
-    @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState) {
-        super.onSaveInstanceState(outState);
-        outState.putBoolean("comparison_mode", isComparisonMode);
-    }
-
-    @Override
-    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
-        isComparisonMode = savedInstanceState.getBoolean("comparison_mode", false);
-        updateComparisonMode();
-    }
-
-
-    private void setupRecyclerView() {
-        wifiListRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        wifiListAdapter = new WifiListAdapter(new ArrayList<>());
-        wifiListAdapter.setOnWifiPointClickListener(wifiPoint -> {
-            // Find corresponding WifiPoint
-            List<WifiPoint> currentPoints = mapService.getWifiPointsData().getValue();
-            if (currentPoints != null) {
-                for (WifiPoint point : currentPoints) {
-                    if (point.getBssid().equals(wifiPoint.getBssid())) {
-                        mapFragment.focusOnWifiPoint(point);
-                        break;
-                    }
-                }
-            }
-        });
-        wifiListRecyclerView.setAdapter(wifiListAdapter);
-    }
-
-
-    private boolean checkGooglePlayServices() {
-        GoogleApiAvailability googleApiAvailability = GoogleApiAvailability.getInstance();
-        int resultCode = googleApiAvailability.isGooglePlayServicesAvailable(this);
-        if (resultCode != ConnectionResult.SUCCESS) {
-            if (googleApiAvailability.isUserResolvableError(resultCode)) {
-                googleApiAvailability.getErrorDialog(this, resultCode, 2404).show();
-            }
-            return false;
-        }
-        return true;
-    }
-
-
-    private Location getLastKnownLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED) {
-            return null;
-        }
-        // Using a CompletableFuture to handle the async nature of getLastLocation
-        CompletableFuture<Location> locationFuture = new CompletableFuture<>();
-
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, locationFuture::complete)
-                .addOnFailureListener(e -> locationFuture.complete(null));
-
-        try {
-            Location location = locationFuture.get(1, TimeUnit.SECONDS);
-            if (location == null) {
-                // If last location is null, try getting current location
-                requestNewLocation();
-            }
-            return location;
-        } catch (Exception e) {
-            return null;
+    private void showEmptyList(boolean showEmpty) {
+        if (showEmpty) {
+            mainLLCEmptyList.setVisibility(View.VISIBLE);
+            mainRCVWifiList.setVisibility(View.GONE);
+        } else {
+            mainLLCEmptyList.setVisibility(View.GONE);
+            mainRCVWifiList.setVisibility(View.VISIBLE);
         }
     }
 
+    private void updateRecyclerView(List<WiFiDevice> devices) {
+        WiFiDevicesAdapter adapter = new WiFiDevicesAdapter(devices);
+        mainRCVWifiList.setAdapter(adapter);
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (mapService != null && !mapService.hasBaseLocation()) {
-            initializeLocation();
-        }
-    }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (fusedLocationClient != null && locationCallback != null) {
-            fusedLocationClient.removeLocationUpdates(locationCallback);
-        }
-        if (mapFragment != null) {
-            mapFragment.cleanup();
-        }
-        if (serviceConnection != null) {
-            unbindService(serviceConnection);
-        }
+        // For a quick placeholder, let's just log or do something minimal
+        Toast.makeText(this,
+                "Loaded " + devices.size() + " Wi-Fi devices",
+                Toast.LENGTH_SHORT).show();
     }
 }

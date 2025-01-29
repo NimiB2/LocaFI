@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "219654524061",
+    "project_id": "locafi-c6198",
+    "storage_bucket": "locafi-c6198.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:219654524061:android:bd23ae2338e514c1e51874",
+        "android_client_info": {
+          "package_name": "dev.nimrod.locafi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzGS1yKoNjTwlF12GFJNvTmf95r5bKyOY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

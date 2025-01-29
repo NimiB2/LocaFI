@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
-    tools:context=".ui.activities.MainActivity">
+    tools:context=".ui.activities.ScanningActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/scanning_ABL_appbar"
@@ -15,7 +15,7 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/main_ABL_appbar"
+            android:id="@+id/scanning_BTN_return_gateway"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/secondary_color"
@@ -43,50 +43,43 @@
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Visualization Container -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/main_MCV_visualization"
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/scanning_BTN_start"
         android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/start_wifi_scan"
+        android:backgroundTint="@color/primary_color"
+        android:textColor="@color/secondary_color"
+        app:cornerRadius="12dp"
+        app:layout_constraintTop_toBottomOf="@id/scanning_ABL_appbar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="@dimen/margin_m" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/scanning_BTN_stop"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/stop_wifi_scan"
+        android:backgroundTint="@color/primary_color"
+        android:textColor="@color/secondary_color"
+        app:cornerRadius="12dp"
+        app:layout_constraintTop_toBottomOf="@id/scanning_BTN_start"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="@dimen/margin_m" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/scanning_MCV_wifiList"
+        android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_margin="@dimen/margin_m"
         app:cardElevation="@dimen/elevation"
-        app:layout_constraintTop_toBottomOf="@id/main_ABL_appbar"
-        app:layout_constraintBottom_toTopOf="@id/main_MCV_wifiList"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <com.google.android.material.progressindicator.CircularProgressIndicator
-            android:id="@+id/main_PGI_loading"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            app:indicatorSize="48dp"
-            app:indicatorColor="@color/primary_color"
-            android:visibility="visible"/>
-
-
-
-        <FrameLayout
-            android:id="@+id/main_VIS_location"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone"
-            android:background="@color/secondary_background"
-            android:padding="@dimen/margin_s" />
-
-    </com.google.android.material.card.MaterialCardView>
-
-    <!-- Wi-Fi List Card -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/main_MCV_wifiList"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/card_margin"
-        android:layout_margin="@dimen/margin_m"
-        app:cardElevation="@dimen/elevation"
-        app:layout_constraintBottom_toTopOf="@id/main_LLC_buttons">
+        app:layout_constraintTop_toBottomOf="@id/scanning_BTN_stop"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <androidx.appcompat.widget.LinearLayoutCompat
-            android:id="@+id/main_LLC_empty_list"
+            android:id="@+id/scanning_LLC_empty_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/secondary_color"
@@ -96,7 +89,7 @@
             android:padding="@dimen/margin_m">
 
             <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/main_MTV_empty_list_title"
+                android:id="@+id/scanning_MTV_empty_list_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/no_networks_found"
@@ -105,7 +98,7 @@
                 android:textColor="@color/text_color"/>
 
             <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/main_MTV_empty_list_desc"
+                android:id="@+id/scanning_MTV_empty_list_desc"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/margin_s"
@@ -117,7 +110,7 @@
         </androidx.appcompat.widget.LinearLayoutCompat>
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/main_RCV_wifiList"
+            android:id="@+id/scanning_RCV_wifiList"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/secondary_background"
@@ -126,27 +119,5 @@
             android:padding="@dimen/margin_s" />
 
     </com.google.android.material.card.MaterialCardView>
-
-    <!-- Bottom Buttons Container -->
-    <androidx.appcompat.widget.LinearLayoutCompat
-        android:id="@+id/main_LLC_buttons"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingHorizontal="@dimen/button_padding"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/main_BTN_location"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:backgroundTint="@color/primary_color"
-            android:textColor="@color/secondary_color"
-            android:text="@string/your_exact_gps_location"
-            android:layout_marginBottom="@dimen/margin_m" />
-
-
-    </androidx.appcompat.widget.LinearLayoutCompat>
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>

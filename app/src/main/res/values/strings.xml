@@ -33,5 +33,15 @@
 
     <string name="show_gps_location">Show GPS Location</string>
     <string name="hide_gps_location">Hide GPS Location</string>
+    <string name="start_wifi_scan">START SCAN</string>
+    <string name="stop_wifi_scan">STOP SCAN</string>
+    <string name="view_scanned_list">show wifi list</string>
+    <string name="wifi_name_label">WIFI</string>
+    <string name="latitude_label">" "</string>
+    <string name="longitude_label">" "</string>
+    <string name="location_label">UnKnown</string>
+    <string name="signal_strength_label">" "</string>
+    <string name="enter_main_screen">YOUR WIFI LOCATION</string>
+    <string name="select_action">WELLCOME</string>
 
 </resources>

@@ -1,134 +1,48 @@
 package dev.nimrod.locafi.ui.activities;
 
-
-import android.Manifest;
-import android.animation.Animator;
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.location.Location;
-import android.location.LocationManager;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
-import android.provider.Settings;
-import android.util.Log;
-import android.view.animation.AccelerateDecelerateInterpolator;
-import android.widget.ImageView;
+import android.view.View;
 
-import androidx.annotation.NonNull;
+import androidx.activity.EdgeToEdge;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.Priority;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.imageview.ShapeableImageView;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import dev.nimrod.locafi.R;
-import dev.nimrod.locafi.services.MapDataService;
-import dev.nimrod.locafi.utils.LocationPermissionHandler;
+
 
 @SuppressLint("CustomSplashScreen")
 public class SplashActivity extends AppCompatActivity {
-    private static final String TAG = "SplashActivity";
-    private ShapeableImageView logoImage;
-    private FusedLocationProviderClient fusedLocationClient;
-    private LocationPermissionHandler permissionHandler;
+    private static final long ANIMATION_DURATION = 1500; // 1.5 seconds
 
+    @SuppressLint("MissingInflatedId")
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_splash);
-
-        logoImage = findViewById(R.id.splash_IMG_logo);
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-        // Initialize permission handler
-        permissionHandler = new LocationPermissionHandler(this, new LocationPermissionHandler.PermissionCallback() {
-            @Override
-            public void onPermissionGranted() {
-                // Once permission is granted, proceed with initialization
-                initializeServices();
-            }
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
         });
 
-        // Start permission check
-        permissionHandler.requestLocationPermission();
-    }
+        View logo = findViewById(R.id.splash_IMG_logo);
 
-    private void initializeServices() {
-        // Only check if services are enabled
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        boolean isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-
-        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        boolean isWifiEnabled = wifiManager.isWifiEnabled();
-
-        if (!isLocationEnabled || !isWifiEnabled) {
-            showServiceEnableDialog();
-            return;
-        }
-        // Start MapDataService before animation
-        Intent serviceIntent = new Intent(this, MapDataService.class);
-        startService(serviceIntent);
-
-        // Start animation directly
-        startAnimation();
-    }
-
-
-    private void startServiceAndAnimation(Location location) {
-        // Start the service with initial location
-        Intent serviceIntent = new Intent(this, MapDataService.class);
-        if (location != null) {
-            serviceIntent.putExtra("initial_latitude", location.getLatitude());
-            serviceIntent.putExtra("initial_longitude", location.getLongitude());
-        }
-        startService(serviceIntent);
-
-        // Start animation
-        startAnimation();
-    }
-
-    private void showServiceEnableDialog() {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Enable Services")
-                .setMessage("Location and WiFi services are required for this app to work properly. Would you like to enable them?")
-                .setPositiveButton("Settings", (dialog, which) -> {
-                    Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                    startActivity(intent);
-                })
-                .setNegativeButton("Cancel", (dialog, which) -> {
-                    finish();
-                })
-                .show();
-    }
-
-    private void startAnimation() {
-        logoImage.animate()
-                .scaleX(1.2f)
-                .scaleY(1.2f)
+        logo.animate()
                 .alpha(1f)
-                .setDuration(1000)
-                .setInterpolator(new AccelerateDecelerateInterpolator())
-                .setListener(new Animator.AnimatorListener() {
+                .setDuration(ANIMATION_DURATION)
+                .withEndAction(new Runnable() {
                     @Override
-                    public void onAnimationEnd(Animator animation) {
-                        startMainActivity();
+                    public void run() {
+                        startActivity(new Intent(SplashActivity.this, GatewayActivity.class));
+                        finish();
                     }
-
-                    @Override public void onAnimationStart(Animator animation) {}
-                    @Override public void onAnimationCancel(Animator animation) {}
-                    @Override public void onAnimationRepeat(Animator animation) {}
-                });
-    }
-
-
-    private void startMainActivity() {
-        Intent intent = new Intent(this, MainActivity.class);
-        startActivity(intent);
-        finish();
+                })
+                .start();
     }
 }
