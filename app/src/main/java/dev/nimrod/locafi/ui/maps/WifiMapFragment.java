@@ -38,6 +38,8 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
     private Marker estimatedLocationMarker;
     private GoogleMap mMap;
     private List<WiFiDevice> wifiDevices;
+    private Marker gpsLocationMarker;
+    private boolean isGpsLocationVisible = false;
     private Map<String, Circle> deviceCircles = new HashMap<>();
     private Map<String, Marker> deviceMarkers = new HashMap<>();
 
@@ -71,6 +73,29 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
         this.wifiDevices = devices;
         if (mMap != null) {
             updateMapWithDevices();
+        }
+    }
+
+    public void toggleGPSLocation(LatLng location) {
+        if (mMap != null) {
+            if (gpsLocationMarker != null) {
+                gpsLocationMarker.remove();
+                gpsLocationMarker = null;
+                isGpsLocationVisible = false;
+            } else if (location != null) {
+                MarkerOptions markerOptions = new MarkerOptions()
+                        .position(location)
+                        .title("Your GPS Location")
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                        .zIndex(3.0f); // Higher than estimated location marker
+
+                gpsLocationMarker = mMap.addMarker(markerOptions);
+                if (gpsLocationMarker != null) {
+                    gpsLocationMarker.showInfoWindow();
+                }
+                isGpsLocationVisible = true;
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, DETAIL_ZOOM));
+            }
         }
     }
 
@@ -171,11 +196,19 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
         }
         deviceMarkers.clear();
 
-        // Clear estimated location marker if it exists
         if (estimatedLocationMarker != null) {
             estimatedLocationMarker.remove();
             estimatedLocationMarker = null;
         }
+
+        if (gpsLocationMarker != null) {
+            gpsLocationMarker.remove();
+            gpsLocationMarker = null;
+        }
+    }
+
+    public boolean isGpsLocationVisible() {
+        return isGpsLocationVisible;
     }
 
     private BitmapDescriptor getBitmapDescriptor(int color) {

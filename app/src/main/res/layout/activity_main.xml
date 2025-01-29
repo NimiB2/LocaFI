@@ -132,7 +132,7 @@
         android:id="@+id/main_LLC_buttons"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:paddingHorizontal="@dimen/button_padding"
         app:layout_constraintBottom_toBottomOf="parent">
 
@@ -145,6 +145,14 @@
             android:text="@string/your_location"
             android:layout_marginBottom="@dimen/margin_m" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/main_BTN_gps_location"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/primary_color"
+            android:textColor="@color/secondary_color"
+            android:text="Show GPS Location"
+            android:layout_marginBottom="@dimen/margin_m" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 

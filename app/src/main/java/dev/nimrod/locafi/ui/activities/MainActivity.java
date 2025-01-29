@@ -1,12 +1,16 @@
 package dev.nimrod.locafi.ui.activities;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -14,8 +18,11 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 
@@ -96,6 +103,7 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
         findViewById(R.id.main_BTN_location).setOnClickListener(view -> {
             showEstimatedLocation();
         });
+        setupGPSLocationButton();
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -169,6 +177,88 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
             WiFiDevicesAdapter adapter = new WiFiDevicesAdapter(devices);
             adapter.setOnWiFiDeviceClickListener(this);
             mainRCVWifiList.setAdapter(adapter);
+        }
+    }
+
+
+    private void setupGPSLocationButton() {
+        MaterialButton gpsButton = findViewById(R.id.main_BTN_gps_location);
+        gpsButton.setOnClickListener(v -> {
+            if (!isLocationEnabled()) {
+                // Show dialog to enable location
+                new AlertDialog.Builder(this)
+                        .setTitle("Enable Location")
+                        .setMessage("Your location services are disabled. Please enable them to use GPS location.")
+                        .setPositiveButton("Location Settings", (dialogInterface, i) -> {
+                            // Open location settings
+                            Intent intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                            startActivity(intent);
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+                return;
+            }
+
+            // Check and request permissions if location is enabled
+            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(
+                        new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
+                        1234);
+            } else {
+                getAndShowLocation();
+            }
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 1234) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                getAndShowLocation();
+            } else {
+                Toast.makeText(this, "Location permission is required to show GPS location",
+                        Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private boolean isLocationEnabled() {
+        android.location.LocationManager locationManager =
+                (android.location.LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        return locationManager != null &&
+                (locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) ||
+                        locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER));
+    }
+
+    private void getAndShowLocation() {
+        FusedLocationProviderClient locationClient =
+                LocationServices.getFusedLocationProviderClient(this);
+
+        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            locationClient.getLastLocation()
+                    .addOnSuccessListener(this, location -> {
+                        if (location != null) {
+                            LatLng userLocation = new LatLng(location.getLatitude(),
+                                    location.getLongitude());
+                            if (wifiMapFragment != null) {
+                                wifiMapFragment.toggleGPSLocation(userLocation);
+                                // Update button text based on visibility
+                                MaterialButton gpsButton = findViewById(R.id.main_BTN_gps_location);
+                                if (wifiMapFragment.isGpsLocationVisible()) {  // Changed to use getter method
+                                    gpsButton.setText("Hide GPS Location");
+                                } else {
+                                    gpsButton.setText("Show GPS Location");
+                                }
+                            }
+                        } else {
+                            Toast.makeText(this, "Unable to get location",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
         }
     }
 
