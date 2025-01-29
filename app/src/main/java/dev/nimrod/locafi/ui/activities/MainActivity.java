@@ -184,6 +184,7 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
 
 
     private void setupGPSLocationButton() {
+        wifiMapFragment.setIsScanning(false);
         MaterialButton gpsButton = findViewById(R.id.main_BTN_gps_location);
         gpsButton.setOnClickListener(v -> {
             if (!isLocationEnabled()) {
@@ -267,11 +268,12 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
                             LatLng userLocation = new LatLng(location.getLatitude(),
                                     location.getLongitude());
                             if (wifiMapFragment != null) {
-                                wifiMapFragment.toggleGPSLocation(userLocation);
+                                wifiMapFragment.toggleGPSMarker(userLocation);
                                 updateLocationTexts(userLocation, true);
                                 MaterialButton gpsButton = findViewById(R.id.main_BTN_gps_location);
-                                if (wifiMapFragment.isGpsLocationVisible()) {  // Changed to use getter method
+                                if (wifiMapFragment.isGpsLocationVisible()) {
                                     gpsButton.setText("Hide GPS Location");
+                                    wifiMapFragment.zoomToGPSLocation(userLocation);  // Changed this line
                                 } else {
                                     gpsButton.setText("Show GPS Location");
                                 }
@@ -283,7 +285,6 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
                     });
         }
     }
-
     @Override
     public void onWiFiDeviceClick(WiFiDevice device) {
         if (wifiMapFragment != null) {

@@ -6,7 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.os.Bundle;
+import android.os.Looper;
 import android.view.View;
 import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
@@ -19,14 +21,23 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.button.MaterialButton;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WiFiDevice;
 import dev.nimrod.locafi.services.WiFiScanService;
 import dev.nimrod.locafi.ui.adapters.WiFiDevicesAdapter;
 import dev.nimrod.locafi.utils.FirebaseRepo;
+import dev.nimrod.locafi.maps.WifiMapFragment;
 
-public class ScanningActivity extends AppCompatActivity {
+
+public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAdapter.OnWiFiDeviceClickListener {
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
 
     private RecyclerView recyclerView;
@@ -36,6 +47,9 @@ public class ScanningActivity extends AppCompatActivity {
     private View emptyView;
     private FirebaseRepo firebaseRepo;
     private boolean isServiceRunning = false;
+    private WifiMapFragment wifiMapFragment;
+    private LocationCallback locationCallback;
+
 
     private static final String[] REQUIRED_PERMISSIONS = new String[] {
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -59,6 +73,7 @@ public class ScanningActivity extends AppCompatActivity {
         setContentView(R.layout.activity_scanning);
 
         setupViews();
+        setupMap();
         setupButtons();
         firebaseRepo = new FirebaseRepo();
 
@@ -95,6 +110,7 @@ public class ScanningActivity extends AppCompatActivity {
             firebaseRepo.addTestData();
             Toast.makeText(this, "Added test WiFi devices", Toast.LENGTH_SHORT).show();
         });
+
     }
 
     private void startScanning() {
@@ -141,18 +157,73 @@ public class ScanningActivity extends AppCompatActivity {
         });
     }
 
+    private void setupMap() {
+        wifiMapFragment = new WifiMapFragment();
+        wifiMapFragment.setIsScanning(true);
+        wifiMapFragment.setMapMode(WifiMapFragment.MapMode.SCANNING);
+        wifiMapFragment.setShowUserLocation(true);
+
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.scanning_MAP_container, wifiMapFragment)
+                .commit();
+
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED) {
+            startLocationUpdates();
+        }
+    }
+
+    private void startLocationUpdates() {
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED) return;
+
+        LocationRequest locationRequest = LocationRequest.create()
+                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+                .setInterval(5000);  // Update every 5 seconds
+
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult == null || wifiMapFragment == null) return;
+
+                Location location = locationResult.getLastLocation();
+                LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                wifiMapFragment.toggleGPSMarker(userLocation);
+            }
+        };
+
+        LocationServices.getFusedLocationProviderClient(this)
+                .requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
+    }
+
     private void loadWiFiDevices() {
         firebaseRepo.getAllDevices(devices -> {
             if (devices != null && !devices.isEmpty()) {
                 recyclerView.setVisibility(View.VISIBLE);
                 emptyView.setVisibility(View.GONE);
-                recyclerView.setAdapter(new WiFiDevicesAdapter(devices));
+                WiFiDevicesAdapter adapter = new WiFiDevicesAdapter(devices);
+                adapter.setOnWiFiDeviceClickListener(this);
+                recyclerView.setAdapter(adapter);
+
+                // Update map with devices
+                if (wifiMapFragment != null) {
+                    wifiMapFragment.updateWiFiDevices(devices);
+                }
             } else {
                 recyclerView.setVisibility(View.GONE);
                 emptyView.setVisibility(View.VISIBLE);
             }
         });
     }
+
+    @Override
+    public void onWiFiDeviceClick(WiFiDevice device) {
+        if (wifiMapFragment != null) {
+            wifiMapFragment.zoomToDevice(device);
+        }
+    }
+
 
     private boolean hasLocationPermission() {
         return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -180,6 +251,10 @@ public class ScanningActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (locationCallback != null) {
+            LocationServices.getFusedLocationProviderClient(this)
+                    .removeLocationUpdates(locationCallback);
+        }
         LocalBroadcastManager.getInstance(this).unregisterReceiver(updateReceiver);
     }
 }

@@ -37,8 +37,10 @@ import dev.nimrod.locafi.utils.SignalStrengthHelper;
 
 public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
     private static final String TAG = "WifiMapFragment";
-    private static final float DEFAULT_ZOOM = 15f;
+    private static final float DEFAULT_ZOOM = 18f;
     private static final float DETAIL_ZOOM = 25f;
+
+    private boolean isScanning = false;
     private Marker estimatedLocationMarker;
     private GoogleMap mMap;
     private List<WiFiDevice> wifiDevices;
@@ -49,7 +51,13 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
     private LatLng gpsLatLng;
     private Map<String, Circle> deviceCircles = new HashMap<>();
     private Map<String, Marker> deviceMarkers = new HashMap<>();
+    public enum MapMode {
+        HISTORY,    // For MainActivity - shows historical data
+        SCANNING    // For ScanningActivity - shows real-time data
+    }
 
+    private MapMode currentMode = MapMode.HISTORY;
+    private boolean showUserLocation = false;
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -74,6 +82,14 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
         mMap.getUiSettings().setZoomControlsEnabled(true);
         mMap.getUiSettings().setMyLocationButtonEnabled(true);
         updateMapWithDevices();
+
+        if (showUserLocation) {
+            try {
+                mMap.setMyLocationEnabled(true);
+            } catch (SecurityException e) {
+                Log.e(TAG, "Error enabling user location: " + e.getMessage());
+            }
+        }
     }
 
     public void updateWiFiDevices(List<WiFiDevice> devices) {
@@ -82,32 +98,75 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
             updateMapWithDevices();
         }
     }
+    public void setMapMode(MapMode mode) {
+        this.currentMode = mode;
+    }
 
-    public void toggleGPSLocation(LatLng location) {
+    public void setIsScanning(boolean scanning) {
+        this.isScanning = scanning;
+    }
+
+    public void zoomToGPSLocation(LatLng location) {
+        if (mMap != null && location != null) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, DETAIL_ZOOM));
+        }
+    }
+
+    public void setShowUserLocation(boolean show) {
+        this.showUserLocation = show;
+        if (mMap != null) {
+            try {
+                mMap.setMyLocationEnabled(show);
+            } catch (SecurityException e) {
+                Log.e(TAG, "Error setting user location visibility: " + e.getMessage());
+            }
+        }
+    }
+    public void toggleGPSMarker(LatLng location) {
         if (mMap != null) {
             if (gpsLocationMarker != null) {
+                // If marker exists, remove it (toggle off)
                 gpsLocationMarker.remove();
                 gpsLocationMarker = null;
                 gpsLatLng = null;
                 isGpsLocationVisible = false;
             } else if (location != null) {
-                gpsLatLng = location;
-                MarkerOptions markerOptions = new MarkerOptions()
-                        .position(location)
-                        .title("Your GPS Location")
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
-                        .zIndex(3.0f);
-
-                gpsLocationMarker = mMap.addMarker(markerOptions);
-                if (gpsLocationMarker != null) {
-                    gpsLocationMarker.showInfoWindow();
-                }
-                isGpsLocationVisible = true;
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, DETAIL_ZOOM));
+                // If no marker and we have location, add it (toggle on)
+                addGPSMarker(location);
             }
             updateDistanceLine();
         }
     }
+
+    public void updateGPSLocation(LatLng location) {
+        if (mMap != null && location != null) {
+            if (gpsLocationMarker == null) {
+                addGPSMarker(location);
+            } else {
+                gpsLocationMarker.setPosition(location);
+            }
+            if (isScanning) {
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, DETAIL_ZOOM));
+            }
+        }
+    }
+
+    // Helper method for creating/updating GPS marker
+    private void addGPSMarker(LatLng location) {
+        gpsLatLng = location;
+        MarkerOptions markerOptions = new MarkerOptions()
+                .position(location)
+                .title("Your GPS Location")
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                .zIndex(3.0f);
+
+        gpsLocationMarker = mMap.addMarker(markerOptions);
+        if (gpsLocationMarker != null) {
+            gpsLocationMarker.showInfoWindow();
+        }
+        isGpsLocationVisible = true;
+    }
+
     public void updateDistanceLine() {
         if (mMap != null) {
             // Remove existing line
@@ -157,7 +216,7 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
                 estimatedLocationMarker.remove();
             }
 
-            estimatedLatLng = location;  // Store the location
+            estimatedLatLng = location;
 
             // Create a distinctive marker for estimated location
             MarkerOptions markerOptions = new MarkerOptions()
@@ -240,11 +299,6 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
         if (estimatedLocationMarker != null) {
             estimatedLocationMarker.remove();
             estimatedLocationMarker = null;
-        }
-
-        if (gpsLocationMarker != null) {
-            gpsLocationMarker.remove();
-            gpsLocationMarker = null;
         }
     }
 
