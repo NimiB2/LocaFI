@@ -8,6 +8,12 @@ LocaFi is an **Android application** that enables **WiFi-based localization** by
 
 With **real-time scanning**, **Google Maps integration**, and **Firebase-powered data storage**, LocaFi provides an efficient way to visualize and analyze WiFi networks in different locations.
 
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f28ba081-8f0d-4a2e-b8f1-5718db5555f5" width="150">
+</p>
+
+
 ---
 
 ## 🚀 Key Features
@@ -19,11 +25,6 @@ With **real-time scanning**, **Google Maps integration**, and **Firebase-powered
 ✔ **Signal Strength Analysis** – Categorizes WiFi networks as **Excellent, Good, Fair, or Poor** based on signal strength.  
 ✔ **Firebase Realtime Database** – Saves scanned WiFi networks **immediately in Firebase**, allowing historical analysis and retrieval.  
 ✔ **Permission Management** – Ensures all required permissions (Location, WiFi, Background Services) are granted efficiently.  
-
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/f28ba081-8f0d-4a2e-b8f1-5718db5555f5" width="300">
-</p>
 
 
 ---
@@ -44,8 +45,7 @@ The scanning process continues **even when the app is minimized** using a **fore
 
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/8c10b7f4-7683-4432-b030-be7323ae03de" width="300">
-  <img src="https://github.com/user-attachments/assets/63e10af4-072d-4d99-bb3c-8f9940b91214" width="300">
+  <img src="https://github.com/user-attachments/assets/8c10b7f4-7683-4432-b030-be7323ae03de" width="150">
 </p>
 
 
@@ -63,8 +63,8 @@ The **Main Page** is designed for users who want to **analyze historical WiFi sc
 
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/dd980a2e-3dba-48bc-b5ca-f78cf238cb0a" width="300">
-  <img src="https://github.com/user-attachments/assets/78c406f3-0c93-439d-991e-f60965835a61" width="300">
+  <img src="https://github.com/user-attachments/assets/dd980a2e-3dba-48bc-b5ca-f78cf238cb0a" width="150">
+  <img src="https://github.com/user-attachments/assets/78c406f3-0c93-439d-991e-f60965835a61" width="150">
 </p>
 
 
