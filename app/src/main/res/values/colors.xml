@@ -8,6 +8,7 @@
     <color name="text_color">#27e6ad</color>
     <color name="secondary_background">#d4dad1</color>
 
+
     <color name="wifi_gradient_start">#FFD700</color>  <!-- Yellow -->
     <color name="wifi_gradient_center">#FFA500</color> <!-- Orange -->
     <color name="wifi_gradient_end">#FF4500</color>    <!-- Red-Orange -->
