@@ -22,6 +22,32 @@ With **real-time scanning**, **Google Maps integration**, and **Firebase-powered
 
 ---
 
+## 📸 Screenshots
+
+### 🏠 Gateway Screen (Home Page)
+![Gateway Screen](./screenshots/gateway_screen.png)
+The **home screen** allows users to navigate to either the **WiFi Scanning Page** or the **Location Estimation Page**.
+
+### 🔍 Scanning Page – WiFi List & Real-Time Updates
+![Scanning Page](./screenshots/scanning_page.png)
+The **WiFi scanning interface** provides options to **start, stop, or clear scans**. Detected networks are displayed with **signal strength bars**.
+
+### 🗺️ Scanning Page – Map View
+![Map View](./screenshots/scanning_map.png)
+Scanned WiFi networks are **plotted on a map**, with circle sizes based on signal strength. The **GPS location is marked** for comparison.
+
+### 📍 Estimated vs. GPS Location
+![Location Estimation](./screenshots/estimated_vs_gps.png)
+Shows the **difference between estimated and GPS locations**, useful for **WiFi-based positioning** accuracy.
+
+### 🔔 Foreground Service Notification
+![Foreground Service](./screenshots/foreground_service.png)
+A **persistent notification** ensures that WiFi scanning continues **even when the app is minimized**, improving **real-time data collection**.
+
+
+---
+
+
 ## 📱 App Overview
 
 ### 🔍 **Scanning Page**
