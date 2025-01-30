@@ -4,16 +4,19 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.android.material.progressindicator.LinearProgressIndicator;
+
 import java.util.List;
+
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.models.WiFiDevice;
 import dev.nimrod.locafi.utils.SignalStrengthHelper;
 
 public class WiFiDevicesAdapter extends RecyclerView.Adapter<WiFiDevicesAdapter.ViewHolder> {
-
     private List<WiFiDevice> devices;
     private OnWiFiDeviceClickListener listener;
 
@@ -42,8 +45,6 @@ public class WiFiDevicesAdapter extends RecyclerView.Adapter<WiFiDevicesAdapter.
         WiFiDevice device = devices.get(position);
 
         holder.nameTextView.setText("WiFi: " + device.getSsid());
-
-
         Double lat = device.getLatitude();
         Double lon = device.getLongitude();
         String loc = (lat != null && lon != null) ? "(" + lat + ", " + lon + ")" : "Unknown";
@@ -67,8 +68,6 @@ public class WiFiDevicesAdapter extends RecyclerView.Adapter<WiFiDevicesAdapter.
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView nameTextView;
-        TextView latTextView;
-        TextView lonTextView;
         TextView locationTextView;
         TextView signalTextView;
         LinearProgressIndicator signalProgress;

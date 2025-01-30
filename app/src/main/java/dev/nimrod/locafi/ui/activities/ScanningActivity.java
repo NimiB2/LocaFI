@@ -13,6 +13,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.view.View;
@@ -41,7 +42,7 @@ import dev.nimrod.locafi.models.WiFiDevice;
 import dev.nimrod.locafi.services.WiFiScanService;
 import dev.nimrod.locafi.ui.adapters.WiFiDevicesAdapter;
 import dev.nimrod.locafi.utils.FirebaseRepo;
-import dev.nimrod.locafi.maps.WifiMapFragment;
+import dev.nimrod.locafi.ui.maps.WifiMapFragment;
 
 
 public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAdapter.OnWiFiDeviceClickListener {
@@ -128,7 +129,10 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
 
 
     private void startScanning() {
-        if (!isCheckingPermissions) {
+        if (permissionManager.hasLocationPermission()) {
+            startScanningService();
+        }
+        else if (!isCheckingPermissions) {
             isCheckingPermissions = true;
             permissionManager.requestLocationPermission(new PermissionManager.PermissionCallback() {
                 @Override

@@ -5,7 +5,6 @@ import java.util.List;
 import dev.nimrod.locafi.models.WiFiDevice;
 
 public class LocationCalculator {
-    private static final int BASE_RADIUS = 100; // Base radius in meters
     private static final int MIN_SIGNAL = -100; // Minimum signal strength in dBm
 
     public static LatLng calculateLocation(List<WiFiDevice> devices) {

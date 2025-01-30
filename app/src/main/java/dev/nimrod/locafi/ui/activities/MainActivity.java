@@ -40,7 +40,7 @@ import dev.nimrod.locafi.managers.PermissionManager;
 import dev.nimrod.locafi.models.WiFiDevice;
 import dev.nimrod.locafi.ui.adapters.WiFiDevicesAdapter;
 import dev.nimrod.locafi.utils.FirebaseRepo;
-import dev.nimrod.locafi.maps.WifiMapFragment;
+import dev.nimrod.locafi.ui.maps.WifiMapFragment;
 import dev.nimrod.locafi.utils.LocationCalculator;
 
 
@@ -218,6 +218,11 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
     }
 
     private void requestLocationPermissionAndGetLocation() {
+        if (permissionManager.hasLocationPermission()) {
+            getAndShowLocation();
+            return;
+        }
+
         if (!isCheckingPermissions) {
             isCheckingPermissions = true;
             permissionManager.requestLocationPermission(new PermissionManager.PermissionCallback() {

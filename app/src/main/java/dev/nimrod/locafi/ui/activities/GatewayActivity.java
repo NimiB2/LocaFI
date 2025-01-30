@@ -63,6 +63,12 @@ public class GatewayActivity extends AppCompatActivity {
     }
 
     private void checkPermissionsAndStartScanning() {
+        if (permissionManager.hasLocationPermission()) {
+            isCheckingPermissions = false;
+            startActivity(new Intent(GatewayActivity.this, ScanningActivity.class));
+            return;
+        }
+
         permissionManager.requestLocationPermission(new PermissionManager.PermissionCallback() {
             @Override
             public void onPermissionResult(PermissionManager.PermissionState state) {

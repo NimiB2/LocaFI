@@ -12,11 +12,13 @@ import dev.nimrod.locafi.models.WiFiDevice;
 
 public class FirebaseRepo {
     private static final String TAG = "FirebaseRepo";
+    private static final String WIFI_DEVICES_PATH = "wifiDevices";
+
     private final DatabaseReference dbRef;
 
     public FirebaseRepo() {
         FirebaseDatabase database = FirebaseDatabase.getInstance();
-        this.dbRef = database.getReference("wifiDevices");
+        this.dbRef = database.getReference(WIFI_DEVICES_PATH);
     }
 
     public void saveDevice(WiFiDevice wifiDevice) {

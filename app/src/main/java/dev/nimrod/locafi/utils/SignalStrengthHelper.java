@@ -9,7 +9,7 @@ public class SignalStrengthHelper {
     private static final int FAIR_SIGNAL = -70;
     private static final int POOR_SIGNAL = -80;
 
-    // Constants for circle radiuses (in meters)
+    // Constants for circle radius (in meters)
     private static final float EXCELLENT_RADIUS = 10;
     private static final float GOOD_RADIUS = 20;
     private static final float FAIR_RADIUS = 30;
@@ -28,7 +28,7 @@ public class SignalStrengthHelper {
         switch (calculateSignalLevel(rssi)) {
             case 4: return Color.rgb(0, 255, 0);     // Green for excellent
             case 3: return Color.rgb(144, 238, 144); // Light green for good
-            case 2: return Color.rgb(255, 255, 0);   // Yellow for fair
+            case 2: return Color.rgb(255, 215, 0);   // Yellow for fair
             case 1: return Color.rgb(255, 165, 0);   // Orange for poor
             default: return Color.rgb(255, 0, 0);    // Red for very poor
         }

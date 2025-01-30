@@ -118,7 +118,7 @@ public class PermissionManager {
                 });
     }
 
-    private boolean hasLocationPermission() {
+    public boolean hasLocationPermission() {
         for (String permission : REQUIRED_PERMISSIONS) {
             if (ContextCompat.checkSelfPermission(context, permission)
                     != PackageManager.PERMISSION_GRANTED) {
@@ -128,7 +128,7 @@ public class PermissionManager {
         return true;
     }
 
-    private boolean hasBackgroundLocationPermission() {
+    public boolean hasBackgroundLocationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             return ContextCompat.checkSelfPermission(context,
                     Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;

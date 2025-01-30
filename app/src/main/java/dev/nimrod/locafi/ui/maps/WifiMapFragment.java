@@ -1,4 +1,4 @@
-package dev.nimrod.locafi.maps;
+package dev.nimrod.locafi.ui.maps;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -39,7 +39,6 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
     private static final String TAG = "WifiMapFragment";
     private static final float DEFAULT_ZOOM = 18f;
     private static final float DETAIL_ZOOM = 25f;
-
     private boolean isScanning = false;
     private Marker estimatedLocationMarker;
     private GoogleMap mMap;
@@ -51,13 +50,13 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
     private LatLng gpsLatLng;
     private Map<String, Circle> deviceCircles = new HashMap<>();
     private Map<String, Marker> deviceMarkers = new HashMap<>();
-    public enum MapMode {
-        HISTORY,    // For MainActivity - shows historical data
-        SCANNING    // For ScanningActivity - shows real-time data
-    }
-
     private MapMode currentMode = MapMode.HISTORY;
     private boolean showUserLocation = false;
+    public enum MapMode {
+        HISTORY,    // For MainActivity
+        SCANNING    // For ScanningActivity
+    }
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
