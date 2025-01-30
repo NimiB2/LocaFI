@@ -27,6 +27,8 @@ With **real-time scanning**, **Google Maps integration**, and **Firebase-powered
 ### 🏠 Gateway Screen (Home Page)
 
 ![צילום מסך 2025-01-30 145940](https://github.com/user-attachments/assets/453a84ab-77ab-4cba-b81b-9013671ac344)
+
+
 The **home screen** allows users to navigate to either the **WiFi Scanning Page** or the **Location Estimation Page**.
 
 ---
