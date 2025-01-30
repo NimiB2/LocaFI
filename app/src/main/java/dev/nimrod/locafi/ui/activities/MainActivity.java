@@ -1,5 +1,11 @@
 package dev.nimrod.locafi.ui.activities;
 
+import static androidx.core.location.LocationManagerCompat.requestLocationUpdates;
+import static dev.nimrod.locafi.managers.PermissionManager.PermissionState.LOCATION_DISABLE;
+import static dev.nimrod.locafi.managers.PermissionManager.PermissionState.LOCATION_SETTINGS_OK;
+import static dev.nimrod.locafi.managers.PermissionManager.PermissionState.LOCATION_SETTINGS_PROCESS;
+import static dev.nimrod.locafi.managers.PermissionManager.PermissionState.NO_REGULAR_PERMISSION;
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -30,6 +36,7 @@ import com.google.android.material.progressindicator.CircularProgressIndicator;
 import java.util.List;
 
 import dev.nimrod.locafi.R;
+import dev.nimrod.locafi.managers.PermissionManager;
 import dev.nimrod.locafi.models.WiFiDevice;
 import dev.nimrod.locafi.ui.adapters.WiFiDevicesAdapter;
 import dev.nimrod.locafi.utils.FirebaseRepo;
@@ -37,7 +44,8 @@ import dev.nimrod.locafi.maps.WifiMapFragment;
 import dev.nimrod.locafi.utils.LocationCalculator;
 
 
-public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapter.OnWiFiDeviceClickListener {    private View mainLayout;
+public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapter.OnWiFiDeviceClickListener {
+    private View mainLayout;
     private MaterialCardView mainMCVVisualization;
     private CircularProgressIndicator mainPGILoading;
     private View mainVISLocation;
@@ -45,6 +53,8 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
     private View mainLLCEmptyList;
     private RecyclerView mainRCVWifiList;
     private View mainLLCButtons;
+    private PermissionManager permissionManager;
+    private boolean isCheckingPermissions = false;
 
     private WifiMapFragment wifiMapFragment;
     private FirebaseRepo firebaseRepo;
@@ -60,22 +70,15 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
             return insets;
         });
 
-        mainLayout = findViewById(R.id.main);
-        ViewCompat.setOnApplyWindowInsetsListener(mainLayout, (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
-
 
         initViews();
         initButtons();
-
         loadWiFiDevices();
     }
 
 
     private void initViews() {
+        permissionManager = new PermissionManager(this);
         mainMCVVisualization = findViewById(R.id.main_MCV_visualization);
         mainPGILoading = findViewById(R.id.main_PGI_loading);
         mainVISLocation = findViewById(R.id.main_VIS_location);
@@ -118,6 +121,13 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
             startActivity(intent);
             finish();
         });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        permissionManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
 
@@ -188,30 +198,58 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
         MaterialButton gpsButton = findViewById(R.id.main_BTN_gps_location);
         gpsButton.setOnClickListener(v -> {
             if (!isLocationEnabled()) {
-                // Show dialog to enable location
-                new AlertDialog.Builder(this)
-                        .setTitle("Enable Location")
-                        .setMessage("Your location services are disabled. Please enable them to use GPS location.")
-                        .setPositiveButton("Location Settings", (dialogInterface, i) -> {
-                            // Open location settings
-                            Intent intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                            startActivity(intent);
-                        })
-                        .setNegativeButton("Cancel", null)
-                        .show();
+                showEnableLocationServicesDialog();
                 return;
             }
-
-            // Check and request permissions if location is enabled
-            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
-                    != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(
-                        new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
-                        1234);
-            } else {
-                getAndShowLocation();
-            }
+            requestLocationPermissionAndGetLocation();
         });
+    }
+
+    private void showEnableLocationServicesDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Enable Location")
+                .setMessage("Your location services are disabled. Please enable them to use GPS location.")
+                .setPositiveButton("Location Settings", (dialogInterface, i) -> {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                    startActivity(intent);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void requestLocationPermissionAndGetLocation() {
+        if (!isCheckingPermissions) {
+            isCheckingPermissions = true;
+            permissionManager.requestLocationPermission(new PermissionManager.PermissionCallback() {
+                @Override
+                public void onPermissionResult(PermissionManager.PermissionState state) {
+                    isCheckingPermissions = false;
+                    switch (state) {
+                        case LOCATION_DISABLE:
+                            permissionManager.openLocationSettings();
+                            break;
+                        case NO_REGULAR_PERMISSION:
+                            permissionManager.requestRegularPermissions();
+                            break;
+                        case LOCATION_SETTINGS_PROCESS:
+                            permissionManager.validateLocationSettings();
+                            break;
+                        case LOCATION_SETTINGS_OK:
+                            getAndShowLocation();
+                            break;
+                    }
+                }
+
+                @Override
+                public void onLocationSettingsResult(boolean isEnabled) {
+                    if (isEnabled) {
+                        getAndShowLocation();
+                    } else {
+                        permissionManager.openLocationSettings();
+                    }
+                }
+            });
+        }
     }
 
     private void updateLocationTexts(LatLng location, boolean isGPS) {
@@ -234,19 +272,7 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
         }
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 1234) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getAndShowLocation();
-            } else {
-                Toast.makeText(this, "Location permission is required to show GPS location",
-                        Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
+
 
     private boolean isLocationEnabled() {
         android.location.LocationManager locationManager =
@@ -257,34 +283,31 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
     }
 
     private void getAndShowLocation() {
-        FusedLocationProviderClient locationClient =
-                LocationServices.getFusedLocationProviderClient(this);
-
-        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED) {
-            locationClient.getLastLocation()
-                    .addOnSuccessListener(this, location -> {
-                        if (location != null) {
-                            LatLng userLocation = new LatLng(location.getLatitude(),
-                                    location.getLongitude());
-                            if (wifiMapFragment != null) {
-                                wifiMapFragment.toggleGPSMarker(userLocation);
-                                updateLocationTexts(userLocation, true);
-                                MaterialButton gpsButton = findViewById(R.id.main_BTN_gps_location);
-                                if (wifiMapFragment.isGpsLocationVisible()) {
-                                    gpsButton.setText("Hide GPS Location");
-                                    wifiMapFragment.zoomToGPSLocation(userLocation);  // Changed this line
-                                } else {
-                                    gpsButton.setText("Show GPS Location");
-                                }
-                            }
+        try {
+            FusedLocationProviderClient locationClient = LocationServices.getFusedLocationProviderClient(this);
+            locationClient.getLastLocation().addOnSuccessListener(this, location -> {
+                if (location != null) {
+                    LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                    if (wifiMapFragment != null) {
+                        wifiMapFragment.toggleGPSMarker(userLocation);
+                        updateLocationTexts(userLocation, true);
+                        MaterialButton gpsButton = findViewById(R.id.main_BTN_gps_location);
+                        if (wifiMapFragment.isGpsLocationVisible()) {
+                            gpsButton.setText("Hide GPS Location");
+                            wifiMapFragment.zoomToGPSLocation(userLocation);
                         } else {
-                            Toast.makeText(this, "Unable to get location",
-                                    Toast.LENGTH_SHORT).show();
+                            gpsButton.setText("Show GPS Location");
                         }
-                    });
+                    }
+                } else {
+                    Toast.makeText(this, "Unable to get location", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } catch (SecurityException e) {
+            Log.e("MainActivity", "Error getting location: " + e.getMessage());
         }
     }
+
     @Override
     public void onWiFiDeviceClick(WiFiDevice device) {
         if (wifiMapFragment != null) {

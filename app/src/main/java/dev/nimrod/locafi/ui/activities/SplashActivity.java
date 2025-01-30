@@ -19,7 +19,6 @@ import dev.nimrod.locafi.R;
 public class SplashActivity extends AppCompatActivity {
     private static final long ANIMATION_DURATION = 1500; // 1.5 seconds
 
-    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

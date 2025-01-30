@@ -1,5 +1,11 @@
 package dev.nimrod.locafi.ui.activities;
 
+import static dev.nimrod.locafi.managers.PermissionManager.PermissionState.LOCATION_DISABLE;
+import static dev.nimrod.locafi.managers.PermissionManager.PermissionState.LOCATION_SETTINGS_OK;
+import static dev.nimrod.locafi.managers.PermissionManager.PermissionState.LOCATION_SETTINGS_PROCESS;
+import static dev.nimrod.locafi.managers.PermissionManager.PermissionState.NO_BACKGROUND_PERMISSION;
+import static dev.nimrod.locafi.managers.PermissionManager.PermissionState.NO_REGULAR_PERMISSION;
+
 import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -30,6 +36,7 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.button.MaterialButton;
 import dev.nimrod.locafi.R;
+import dev.nimrod.locafi.managers.PermissionManager;
 import dev.nimrod.locafi.models.WiFiDevice;
 import dev.nimrod.locafi.services.WiFiScanService;
 import dev.nimrod.locafi.ui.adapters.WiFiDevicesAdapter;
@@ -38,8 +45,8 @@ import dev.nimrod.locafi.maps.WifiMapFragment;
 
 
 public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAdapter.OnWiFiDeviceClickListener {
-    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
-
+    private boolean isCheckingPermissions = false;
+    private PermissionManager permissionManager;
     private RecyclerView recyclerView;
     private MaterialButton startButton;
     private MaterialButton stopButton;
@@ -49,13 +56,6 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
     private boolean isServiceRunning = false;
     private WifiMapFragment wifiMapFragment;
     private LocationCallback locationCallback;
-
-
-    private static final String[] REQUIRED_PERMISSIONS = new String[] {
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.FOREGROUND_SERVICE_LOCATION
-    };
 
     private final BroadcastReceiver updateReceiver = new BroadcastReceiver() {
         @Override
@@ -71,13 +71,17 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_scanning);
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
 
         setupViews();
         setupMap();
         setupButtons();
         firebaseRepo = new FirebaseRepo();
 
-        // Register for updates from service
         LocalBroadcastManager.getInstance(this)
                 .registerReceiver(updateReceiver, new IntentFilter(WiFiScanService.SCAN_RESULTS_UPDATE));
 
@@ -85,6 +89,7 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
     }
 
     private void setupViews() {
+        permissionManager = new PermissionManager(this);
         recyclerView = findViewById(R.id.scanning_RCV_wifiList);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
@@ -113,16 +118,59 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
 
     }
 
-    private void startScanning() {
-        if (!hasLocationPermission()) {
-            requestLocationPermission();
-            return;
-        }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        permissionManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+
+    private void startScanning() {
+        if (!isCheckingPermissions) {
+            isCheckingPermissions = true;
+            permissionManager.requestLocationPermission(new PermissionManager.PermissionCallback() {
+                @Override
+                public void onPermissionResult(PermissionManager.PermissionState state) {
+                    isCheckingPermissions = false;
+                    switch (state) {
+                        case LOCATION_DISABLE:
+                            permissionManager.openLocationSettings();
+                            break;
+                        case NO_REGULAR_PERMISSION:
+                            permissionManager.requestRegularPermissions();
+                            break;
+                        case NO_BACKGROUND_PERMISSION:
+                            permissionManager.requestBackgroundPermission();
+                            break;
+                        case LOCATION_SETTINGS_PROCESS:
+                            permissionManager.validateLocationSettings();
+                            break;
+                        case LOCATION_SETTINGS_OK:
+                            startScanningService();
+                            break;
+                    }
+                }
+
+                @Override
+                public void onLocationSettingsResult(boolean isEnabled) {
+                    if (isEnabled) {
+                        startScanningService();
+                    } else {
+                        permissionManager.openLocationSettings();
+                    }
+                }
+            });
+        }
+    }
+
+    private void startScanningService() {
         Intent serviceIntent = new Intent(this, WiFiScanService.class);
         startService(serviceIntent);
         isServiceRunning = true;
         updateButtonStates();
+        startLocationUpdates();
     }
 
     private void stopScanning() {
@@ -131,6 +179,11 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
         startService(serviceIntent);
         isServiceRunning = false;
         updateButtonStates();
+
+        if (locationCallback != null) {
+            LocationServices.getFusedLocationProviderClient(this)
+                    .removeLocationUpdates(locationCallback);
+        }
     }
 
     private void updateButtonStates() {
@@ -167,34 +220,30 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
                 .beginTransaction()
                 .replace(R.id.scanning_MAP_container, wifiMapFragment)
                 .commit();
-
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
-                PackageManager.PERMISSION_GRANTED) {
-            startLocationUpdates();
-        }
     }
 
     private void startLocationUpdates() {
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED) return;
+        try {
+            LocationRequest locationRequest = LocationRequest.create()
+                    .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+                    .setInterval(5000);  // Update every 5 seconds
 
-        LocationRequest locationRequest = LocationRequest.create()
-                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                .setInterval(5000);  // Update every 5 seconds
+            locationCallback = new LocationCallback() {
+                @Override
+                public void onLocationResult(LocationResult locationResult) {
+                    if (locationResult == null || wifiMapFragment == null) return;
 
-        locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                if (locationResult == null || wifiMapFragment == null) return;
+                    Location location = locationResult.getLastLocation();
+                    LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                    wifiMapFragment.toggleGPSMarker(userLocation);
+                }
+            };
 
-                Location location = locationResult.getLastLocation();
-                LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
-                wifiMapFragment.toggleGPSMarker(userLocation);
-            }
-        };
-
-        LocationServices.getFusedLocationProviderClient(this)
-                .requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
+            LocationServices.getFusedLocationProviderClient(this)
+                    .requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
+        } catch (SecurityException e) {
+            Toast.makeText(this, "Error requesting location updates", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void loadWiFiDevices() {
@@ -224,29 +273,6 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
         }
     }
 
-
-    private boolean hasLocationPermission() {
-        return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
-                PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void requestLocationPermission() {
-        requestPermissions(REQUIRED_PERMISSIONS, LOCATION_PERMISSION_REQUEST_CODE);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startScanning();
-            } else {
-                Toast.makeText(this, "Location permission required for WiFi scanning",
-                        Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
 
     @Override
     protected void onDestroy() {
