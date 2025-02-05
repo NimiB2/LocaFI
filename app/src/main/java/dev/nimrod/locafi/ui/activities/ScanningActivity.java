@@ -86,7 +86,7 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
         setupViews();
         setupMap();
         setupButtons();
-        firebaseRepo = new FirebaseRepo(LocaFiApp.getCurrentUser().getUserId());
+        firebaseRepo = new FirebaseRepo();
 
         LocalBroadcastManager.getInstance(this)
                 .registerReceiver(updateReceiver, new IntentFilter(WiFiScanService.SCAN_RESULTS_UPDATE));

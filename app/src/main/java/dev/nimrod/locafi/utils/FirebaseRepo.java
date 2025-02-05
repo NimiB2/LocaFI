@@ -8,6 +8,8 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import java.util.ArrayList;
 import java.util.List;
+
+import dev.nimrod.locafi.LocaFiApp;
 import dev.nimrod.locafi.models.WiFiDevice;
 
 public class FirebaseRepo {
@@ -17,11 +19,12 @@ public class FirebaseRepo {
     private final DatabaseReference userDbRef;
     private final String userId;
 
-    public FirebaseRepo(String userId) {
+    public FirebaseRepo() {
         FirebaseDatabase database = FirebaseDatabase.getInstance();
-        this.userId = userId;
+        this.userId = LocaFiApp.getCurrentUser().getUserId();
         this.userDbRef = database.getReference(USERS_PATH).child(userId).child(WIFI_DEVICES_PATH);
     }
+
 
     public void saveDevice(WiFiDevice wifiDevice) {
         if (wifiDevice.getBssid() == null || wifiDevice.getBssid().isEmpty()) {

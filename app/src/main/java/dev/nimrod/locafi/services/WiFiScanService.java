@@ -46,7 +46,7 @@ public class WiFiScanService extends Service {
     public void onCreate() {
         super.onCreate();
         wifiScanManager = new WiFiScanManager(this);
-        firebaseRepo = new FirebaseRepo(LocaFiApp.getCurrentUser().getUserId());
+        firebaseRepo = new FirebaseRepo();
 
         createNotificationChannel();
     }

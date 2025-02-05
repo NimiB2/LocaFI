@@ -100,7 +100,7 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
             Log.e("MainActivity", "Error: mainVISLocation view not found!");
         }
 
-        firebaseRepo = new FirebaseRepo(LocaFiApp.getCurrentUser().getUserId());
+        firebaseRepo = new FirebaseRepo();
     }
 
     private void initButtons() {
