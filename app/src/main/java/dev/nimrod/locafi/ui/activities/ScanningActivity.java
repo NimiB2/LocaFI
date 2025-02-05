@@ -116,10 +116,10 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
         stopButton.setOnClickListener(v -> stopScanning());
         clearButton.setOnClickListener(v -> showClearConfirmationDialog());
 
-        findViewById(R.id.scanning_BTN_add_test).setOnClickListener(v -> {
-            firebaseRepo.addTestData();
-            Toast.makeText(this, "Added test WiFi devices", Toast.LENGTH_SHORT).show();
-        });
+//        findViewById(R.id.scanning_BTN_add_test).setOnClickListener(v -> {
+//            firebaseRepo.addTestData();
+//            Toast.makeText(this, "Added test WiFi devices", Toast.LENGTH_SHORT).show();
+//        });
 
     }
 
@@ -177,6 +177,7 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
         Intent serviceIntent = new Intent(this, WiFiScanService.class);
         startService(serviceIntent);
         isServiceRunning = true;
+        Toast.makeText(this, "Scanning started", Toast.LENGTH_SHORT).show();
         updateButtonStates();
         startLocationUpdates();
     }
@@ -186,6 +187,7 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
         serviceIntent.setAction(WiFiScanService.ACTION_STOP_SERVICE);
         startService(serviceIntent);
         isServiceRunning = false;
+        Toast.makeText(this, "Scanning stopped", Toast.LENGTH_SHORT).show();
         updateButtonStates();
 
         if (locationCallback != null) {
