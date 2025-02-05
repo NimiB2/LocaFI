@@ -35,6 +35,7 @@ import com.google.android.material.progressindicator.CircularProgressIndicator;
 
 import java.util.List;
 
+import dev.nimrod.locafi.LocaFiApp;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.managers.PermissionManager;
 import dev.nimrod.locafi.models.WiFiDevice;
@@ -99,7 +100,7 @@ public class MainActivity extends AppCompatActivity implements WiFiDevicesAdapte
             Log.e("MainActivity", "Error: mainVISLocation view not found!");
         }
 
-        firebaseRepo = new FirebaseRepo();
+        firebaseRepo = new FirebaseRepo(LocaFiApp.getCurrentUser().getUserId());
     }
 
     private void initButtons() {

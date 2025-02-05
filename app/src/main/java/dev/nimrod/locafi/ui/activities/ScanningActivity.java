@@ -40,6 +40,7 @@ import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
 
+import dev.nimrod.locafi.LocaFiApp;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.managers.PermissionManager;
 import dev.nimrod.locafi.models.WiFiDevice;
@@ -85,7 +86,7 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
         setupViews();
         setupMap();
         setupButtons();
-        firebaseRepo = new FirebaseRepo();
+        firebaseRepo = new FirebaseRepo(LocaFiApp.getCurrentUser().getUserId());
 
         LocalBroadcastManager.getInstance(this)
                 .registerReceiver(updateReceiver, new IntentFilter(WiFiScanService.SCAN_RESULTS_UPDATE));

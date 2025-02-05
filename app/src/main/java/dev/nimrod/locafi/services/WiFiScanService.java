@@ -14,6 +14,7 @@ import android.os.Looper;
 import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import dev.nimrod.locafi.LocaFiApp;
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.managers.WiFiScanManager;
 import dev.nimrod.locafi.models.WiFiDevice;
@@ -28,7 +29,7 @@ public class WiFiScanService extends Service {
     private WiFiScanManager wifiScanManager;
     private boolean isScanning = false;
     private final Handler scanHandler = new Handler(Looper.getMainLooper());
-    private final FirebaseRepo firebaseRepo = new FirebaseRepo();
+    private FirebaseRepo firebaseRepo;
 
     private final Runnable scanRunnable = new Runnable() {
         @Override
@@ -45,6 +46,8 @@ public class WiFiScanService extends Service {
     public void onCreate() {
         super.onCreate();
         wifiScanManager = new WiFiScanManager(this);
+        firebaseRepo = new FirebaseRepo(LocaFiApp.getCurrentUser().getUserId());
+
         createNotificationChannel();
     }
 
