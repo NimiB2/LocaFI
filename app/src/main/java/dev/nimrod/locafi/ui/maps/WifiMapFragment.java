@@ -80,6 +80,7 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
         mMap = googleMap;
         mMap.getUiSettings().setZoomControlsEnabled(true);
         mMap.getUiSettings().setMyLocationButtonEnabled(true);
+//        mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
         updateMapWithDevices();
 
         if (showUserLocation) {
@@ -241,7 +242,6 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
     private void updateMapWithDevices() {
         if (mMap == null || wifiDevices == null) return;
 
-        // Clear existing markers and circles
         clearMarkersAndCircles();
 
         LatLng defaultLocation = new LatLng(37.422131, -122.084801);
@@ -253,23 +253,29 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
                 int color = SignalStrengthHelper.getColorForSignalStrength(device.getSignalStrength());
                 float radius = SignalStrengthHelper.getCircleRadius(device.getSignalStrength());
 
-                // Add circle
+                // Add circle with transparent fill
                 Circle circle = mMap.addCircle(new CircleOptions()
                         .center(position)
                         .radius(radius)
                         .strokeColor(color)
-                        .fillColor(color & 0x40FFFFFF) // 25% opacity
-                        .strokeWidth(2));
+                        .fillColor(Color.TRANSPARENT) // Make fill transparent
+                        .strokeWidth(4)
+                        .zIndex(2.0f));
                 deviceCircles.put(device.getBssid(), circle);
 
-                // Add colored marker
+                // Add marker
                 Marker marker = mMap.addMarker(new MarkerOptions()
                         .position(position)
                         .title(device.getSsid())
                         .snippet("Signal: " + device.getSignalStrength() + " dBm")
-                        .icon(getBitmapDescriptor(color)));
+                        .icon(getBitmapDescriptor(color))
+                        .zIndex(3.0f));
+
                 if (marker != null) {
                     deviceMarkers.put(device.getBssid(), marker);
+
+                    // Add connecting line between circle edge and marker
+                    addConnectingLine(position, radius, color);
                 }
 
                 if (!hasValidDevice) {
@@ -284,6 +290,22 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
         }
     }
 
+    // Add new method to create connecting line
+    private void addConnectingLine(LatLng center, float radius, int color) {
+        // Calculate point on circle's edge (we'll use a point to the right of center)
+        double lat = center.latitude;
+        double lng = center.longitude + (radius / 111000); // Convert meters to degrees (approximate)
+
+        LatLng circleEdge = new LatLng(lat, lng);
+
+        // Draw line from circle edge to center
+        mMap.addPolyline(new PolylineOptions()
+                .add(circleEdge, center)
+                .color(color)
+                .width(4));
+    }
+
+    // Update the clearMarkersAndCircles method to also clear polylines
     private void clearMarkersAndCircles() {
         for (Circle circle : deviceCircles.values()) {
             circle.remove();
@@ -295,12 +317,16 @@ public class WifiMapFragment extends Fragment implements OnMapReadyCallback {
         }
         deviceMarkers.clear();
 
+        // Clear existing polylines
+        if (mMap != null) {
+            mMap.clear();
+        }
+
         if (estimatedLocationMarker != null) {
             estimatedLocationMarker.remove();
             estimatedLocationMarker = null;
         }
     }
-
     public boolean isGpsLocationVisible() {
         return isGpsLocationVisible;
     }

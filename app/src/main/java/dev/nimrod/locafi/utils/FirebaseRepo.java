@@ -52,6 +52,7 @@ public class FirebaseRepo {
             }
         });
     }
+
     public void getAllDevices(final GetAllDevicesCallback callback) {
         dbRef.addValueEventListener(new ValueEventListener() {
             @Override
@@ -101,39 +102,34 @@ public class FirebaseRepo {
     }
 
     public void addTestData() {
-        // Mountain View area coordinates (near Google HQ - default emulator location)
-
-        WiFiDevice device1 = new WiFiDevice();
-        device1.setBssid("00:11:22:33:44:55");
-        device1.setSsid("GooglePlex_WiFi");
-        device1.setSignalStrength(-65);
-        device1.setTimestamp(System.currentTimeMillis());
-        device1.setLatitude(37.422131);
-        device1.setLongitude(-122.084801);
-
-        WiFiDevice device2 = new WiFiDevice();
-        device2.setBssid("AA:BB:CC:DD:EE:FF");
-        device2.setSsid("MountainView_Cafe");
-        device2.setSignalStrength(-72);
-        device2.setTimestamp(System.currentTimeMillis());
-        device2.setLatitude(37.421987);
-        device2.setLongitude(-122.083468);
-
-        WiFiDevice device3 = new WiFiDevice();
-        device3.setBssid("11:22:33:44:55:66");
-        device3.setSsid("Castro_Street_WiFi");
-        device3.setSignalStrength(-55);
-        device3.setTimestamp(System.currentTimeMillis());
-        device3.setLatitude(37.423982);
-        device3.setLongitude(-122.082421);
+        // Mountain View area coordinates (near Google HQ)
+        WiFiDevice[] devices = {
+                createDevice("00:11:22:33:44:55", "GooglePlex_WiFi_1", -65, 37.422131, -122.084801),
+                createDevice("AA:BB:CC:DD:EE:FF", "GooglePlex_WiFi_2", -72, 37.422140, -122.084810),
+                createDevice("11:22:33:44:55:66", "GooglePlex_WiFi_3", -55, 37.422125, -122.084795),
+                createDevice("22:33:44:55:66:77", "Building_A_WiFi", -58, 37.422000, -122.084700),
+                createDevice("33:44:55:66:77:88", "Building_B_WiFi", -75, 37.422200, -122.084900),
+                createDevice("44:55:66:77:88:99", "Cafe_WiFi_1", -68, 37.421987, -122.083468),
+                createDevice("55:66:77:88:99:AA", "Cafe_WiFi_2", -70, 37.421990, -122.083470),
+                createDevice("66:77:88:99:AA:BB", "Street_WiFi_1", -62, 37.423982, -122.082421),
+                createDevice("77:88:99:AA:BB:CC", "Street_WiFi_2", -80, 37.423985, -122.082425)
+        };
 
         Log.d(TAG, "Starting to add test data...");
-
-        // Save devices and log results
-        saveDevice(device1);
-        saveDevice(device2);
-        saveDevice(device3);
-
+        for (WiFiDevice device : devices) {
+            saveDevice(device);
+        }
         Log.d(TAG, "Finished adding test data");
+    }
+
+    private WiFiDevice createDevice(String bssid, String ssid, int strength, double lat, double lon) {
+        WiFiDevice device = new WiFiDevice();
+        device.setBssid(bssid);
+        device.setSsid(ssid);
+        device.setSignalStrength(strength);
+        device.setTimestamp(System.currentTimeMillis());
+        device.setLatitude(lat);
+        device.setLongitude(lon);
+        return device;
     }
 }

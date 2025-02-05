@@ -94,6 +94,20 @@
             android:textColor="@color/secondary_color"
             android:textSize="12sp"
             app:cornerRadius="12dp" />
+
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/scanning_BTN_add_test"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_marginHorizontal="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/primary_color"
+            android:gravity="center"
+            android:text="add test"
+            android:textColor="@color/secondary_color"
+            android:textSize="12sp"
+            app:cornerRadius="12dp" />
     </androidx.appcompat.widget.LinearLayoutCompat>
 
 

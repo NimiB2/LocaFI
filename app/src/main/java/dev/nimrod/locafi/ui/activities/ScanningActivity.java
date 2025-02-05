@@ -116,10 +116,10 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
         stopButton.setOnClickListener(v -> stopScanning());
         clearButton.setOnClickListener(v -> showClearConfirmationDialog());
 
-//        findViewById(R.id.scanning_BTN_add_test).setOnClickListener(v -> {
-//            firebaseRepo.addTestData();
-//            Toast.makeText(this, "Added test WiFi devices", Toast.LENGTH_SHORT).show();
-//        });
+        findViewById(R.id.scanning_BTN_add_test).setOnClickListener(v -> {
+            firebaseRepo.addTestData();
+            Toast.makeText(this, "Added test WiFi devices", Toast.LENGTH_SHORT).show();
+        });
 
     }
 
