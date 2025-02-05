@@ -16,6 +16,7 @@ import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
@@ -36,6 +37,9 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.button.MaterialButton;
+
+import java.util.ArrayList;
+
 import dev.nimrod.locafi.R;
 import dev.nimrod.locafi.managers.PermissionManager;
 import dev.nimrod.locafi.models.WiFiDevice;
@@ -208,12 +212,15 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
         firebaseRepo.clearAllDevices(success -> {
             if (success) {
                 Toast.makeText(this, "All data cleared", Toast.LENGTH_SHORT).show();
+                // Clear the map markers
+                if (wifiMapFragment != null) {
+                    wifiMapFragment.updateWiFiDevices(new ArrayList<>());
+                }
             } else {
                 Toast.makeText(this, "Failed to clear data", Toast.LENGTH_SHORT).show();
             }
         });
     }
-
     private void setupMap() {
         wifiMapFragment = new WifiMapFragment();
         wifiMapFragment.setIsScanning(true);
@@ -224,6 +231,19 @@ public class ScanningActivity extends AppCompatActivity implements WiFiDevicesAd
                 .beginTransaction()
                 .replace(R.id.scanning_MAP_container, wifiMapFragment)
                 .commit();
+
+        // Add initial location focus
+        try {
+            FusedLocationProviderClient locationClient = LocationServices.getFusedLocationProviderClient(this);
+            locationClient.getLastLocation().addOnSuccessListener(this, location -> {
+                if (location != null && wifiMapFragment != null) {
+                    LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                    wifiMapFragment.zoomToGPSLocation(userLocation);
+                }
+            });
+        } catch (SecurityException e) {
+            Log.e("ScanningActivity", "Error getting initial location: " + e.getMessage());
+        }
     }
 
     private void startLocationUpdates() {
