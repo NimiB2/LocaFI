@@ -46,8 +46,6 @@ The scanning process continues **even when the app is minimized** using a **fore
 
 <p align="center">
  <img src="https://github.com/user-attachments/assets/7efbc58b-1118-4008-84f4-c876abb29df2" width="150">
-
-  <img src="https://github.com/user-attachments/assets/8c10b7f4-7683-4432-b030-be7323ae03de" width="150">
 </p>
 
 
@@ -67,10 +65,6 @@ The **Main Page** is designed for users who want to **analyze historical WiFi sc
 <p align="center">
    <img src="https://github.com/user-attachments/assets/852732cc-d967-422f-9545-04c5fbda2de1" width="150">
    <img src="https://github.com/user-attachments/assets/6d8999f9-13d5-4e08-b869-5aa11f45bcf6" width="150">
-
-
-  <img src="https://github.com/user-attachments/assets/dd980a2e-3dba-48bc-b5ca-f78cf238cb0a" width="150">
-  <img src="https://github.com/user-attachments/assets/78c406f3-0c93-439d-991e-f60965835a61" width="150">
 </p>
 
 
